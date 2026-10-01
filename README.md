@@ -43,16 +43,32 @@ choose a password. "Forgot password?" on the sign-in page sends a reset link the
 - **Spending** covers one-off purchases, dated and categorized.
 - **Left over** = income − bills − spending for the month.
 
+## Shopping
+
+- Multiple shared lists (Groceries, Costco, …). Type "2 avocados" or "milk x2" and the quantity fills itself in.
+- Check items off as they go in the cart (shows who got it); "Clear checked" empties the cart section.
+
+## To-dos
+
+- Optional due date and who's doing it (Ryan, Ana, or either of you). Notes for the details.
+- Grouped Overdue / Today / Next 7 days / Later / No date; filter to one person; recent done items below.
+
+## Photos
+
+Signed-in pages show a rotating banner of your photos, kept in a private Supabase storage bucket.
+Add them with "+ Add photos". Never put photos in this repo, because it's public.
+
 ## Layout
 
 ```
 docs/                  the website (GitHub Pages serves this folder)
   config.js            Supabase URL + publishable key
   index.html           routes visitors and email links to the right page
-  login.html, setup.html, budget.html
+  login.html, setup.html, budget.html, shopping.html, todos.html
   assets/client.js     Supabase client + query helper
   assets/shell.js      sign-in gate, header, form dialog (shared by every signed-in page)
-  assets/budget.js     budget page
+  assets/budget.js, shopping.js, todos.js   one script per page
+  assets/photos.js     private photo banner
   assets/vendor/       supabase-js 2.117.2 (self-hosted copy)
 supabase/schema.sql    tables, security policies, history-keeping functions
 ```
