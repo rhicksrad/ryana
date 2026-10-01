@@ -245,3 +245,23 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ============================================================
+-- Photos: a private storage bucket, visible only to members after sign-in.
+-- ============================================================
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('photos', 'photos', false, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do update set public = false;
+
+drop policy if exists "members read photos" on storage.objects;
+create policy "members read photos" on storage.objects
+  for select to authenticated using (bucket_id = 'photos' and public.is_member());
+
+drop policy if exists "members add photos" on storage.objects;
+create policy "members add photos" on storage.objects
+  for insert to authenticated with check (bucket_id = 'photos' and public.is_member());
+
+drop policy if exists "members remove photos" on storage.objects;
+create policy "members remove photos" on storage.objects
+  for delete to authenticated using (bucket_id = 'photos' and public.is_member());

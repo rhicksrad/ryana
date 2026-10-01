@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'">
   <title>Budget · Ryana</title>
   <link rel="icon" href="assets/icon.svg">
   <link rel="stylesheet" href="assets/app.css">
@@ -24,6 +24,8 @@
   </header>
 
   <main class="wrap">
+    <section class="hero empty" id="hero" aria-label="Photos"></section>
+
     <div class="page-head">
       <h1>Budget</h1>
       <div class="month-switch">

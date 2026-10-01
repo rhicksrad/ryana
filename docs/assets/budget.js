@@ -1,5 +1,6 @@
 import { sb, q } from './client.js';
 import { h, toast, initShell, openForm } from './shell.js';
+import { initPhotos } from './photos.js';
 
 const BILL_CATEGORIES = ['Housing', 'Utilities', 'Phone & Internet', 'Insurance', 'Transportation',
   'Subscriptions', 'Debt', 'Health', 'Childcare', 'Other'];
@@ -412,6 +413,7 @@ try {
   let user;
   ({ user, nameOf, members } = await initShell());
   me = user.email.toLowerCase();
+  initPhotos(document.getElementById('hero'), nameOf(me));
   await load();
 
   // Refresh when the other person changes something.

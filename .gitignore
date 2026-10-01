@@ -13,3 +13,6 @@ db.js
 package.json
 package-lock.json
 .env.example
+
+# Your photos, for uploading through the site. Never committed: the repo is public.
+photos/
