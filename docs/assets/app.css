@@ -15,6 +15,9 @@
   --danger-soft: #fde8e6;
   --shadow: 0 1px 2px rgb(29 35 33 / 5%), 0 6px 20px rgb(29 35 33 / 4%);
   --radius: 14px;
+  /* Person colors (fixed order: members sorted by name). Validated for CVD separation. */
+  --person-1: #00806a;
+  --person-2: #cc5a1e;
   color-scheme: light dark;
 }
 
@@ -35,6 +38,8 @@
     --danger: #f2877b;
     --danger-soft: #3d1f1b;
     --shadow: none;
+    --person-1: #36a985;
+    --person-2: #dd7430;
   }
 }
 
@@ -207,6 +212,41 @@ body.loading main, body.loading .me { visibility: hidden; }
 
 .empty { padding: 22px 18px 26px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 
+/* ---------- Insights: who paid, categories ---------- */
+.insights { margin-bottom: 20px; }
+.card-body { padding: 4px 18px 18px; }
+.card-body .empty { border-top: 0; padding: 8px 0; }
+
+.split { display: flex; gap: 2px; height: 10px; margin: 6px 0 14px; }
+.split > span { border-radius: 4px; min-width: 4px; }
+.p1 { --person: var(--person-1); }
+.p2 { --person: var(--person-2); }
+.split > span, .swatch { background: var(--person, var(--muted)); }
+.swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+.people { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.person { display: flex; align-items: baseline; gap: 10px; }
+.person .swatch { align-self: center; }
+.person .who { flex: 1; min-width: 0; }
+.person .who b { font-weight: 650; }
+.person .detail { font-size: 13px; color: var(--muted); }
+.person .amt { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+.person .share { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+.settle { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+.settle b { color: var(--ink); font-weight: 650; }
+
+.cats { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.cat { display: grid; grid-template-columns: minmax(90px, 32%) 1fr auto; align-items: center; gap: 10px; font-size: 14px; }
+.cat .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat .bar { height: 8px; border-radius: 4px; background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line); }
+/* Neutral on purpose: hue is reserved for people, so category bars mustn't look like anyone's. */
+.cat .bar > span { display: block; height: 100%; min-width: 4px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 55%, var(--surface)); }
+.cat .amt { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; white-space: nowrap; }
+.cat .amt small { font-weight: 400; color: var(--muted); margin-left: 6px; }
+
+.tag.paid.switch { border: 0; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.tag.paid.switch:hover { box-shadow: inset 0 0 0 1px var(--accent); }
+
 /* ---------- Dialog ---------- */
 dialog {
   width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: 18px;
@@ -230,6 +270,7 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
   .summary { grid-template-columns: repeat(2, 1fr); }
   .grid-2 { grid-template-columns: 1fr; gap: 0; }
   .grid-2 .card { margin-bottom: 20px; }
+  .insights { margin-bottom: 0; }
 }
 @media (max-width: 560px) {
   .topbar { flex-wrap: wrap; gap: 8px 16px; }

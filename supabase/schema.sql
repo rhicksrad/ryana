@@ -74,10 +74,17 @@ create table if not exists public.expenses (
   description  text not null check (char_length(description) between 1 and 80),
   amount_cents integer not null check (amount_cents between 0 and 1000000000),
   category     text not null default 'Other' check (char_length(category) between 1 and 40),
+  paid_by      text not null default public.my_email(),
   created_by   text not null default public.my_email(),
   created_at   timestamptz not null default now()
 );
 create index if not exists expenses_spent_on on public.expenses (spent_on);
+
+-- Added after first release: who paid for each purchase (defaults to whoever entered it).
+alter table public.expenses add column if not exists paid_by text;
+update public.expenses set paid_by = created_by where paid_by is null;
+alter table public.expenses alter column paid_by set default public.my_email();
+alter table public.expenses alter column paid_by set not null;
 
 -- ============================================================
 -- Row-level security: members only, for everything.

@@ -9,6 +9,7 @@ export function h(tag, props = {}, ...children) {
   for (const [key, value] of Object.entries(props ?? {})) {
     if (value == null || value === false) continue;
     if (key === 'class') el.className = value;
+    else if (key === 'style') Object.assign(el.style, value); // object form; CSP blocks style="" attributes
     else if (key.startsWith('on')) el.addEventListener(key.slice(2), value);
     else if (PROPS.has(key)) el[key] = value;
     else el.setAttribute(key, value === true ? '' : value);
@@ -28,7 +29,8 @@ export function toast(message) {
 
 /**
  * Gate a page behind sign-in and fill in the header.
- * Resolves to { user, nameOf } where nameOf(email) gives a member's display name.
+ * Resolves to { user, members, nameOf }: members is [{ email, name }] in a fixed order
+ * (alphabetical by name), and nameOf(email) gives a member's display name.
  */
 export async function initShell() {
   const session = configured ? (await sb.auth.getSession()).data.session : null;
@@ -42,7 +44,7 @@ export async function initShell() {
   });
   document.getElementById('logout').addEventListener('click', () => sb.auth.signOut());
 
-  const members = await q(sb.from('members').select('email, name'));
+  const members = await q(sb.from('members').select('email, name').order('name'));
   const names = new Map(members.map((m) => [m.email, m.name]));
   const email = session.user.email.toLowerCase();
   const name = names.get(email);
@@ -56,7 +58,7 @@ export async function initShell() {
   document.getElementById('me-name').textContent = name;
   document.getElementById('me-initial').textContent = name.charAt(0).toUpperCase();
   document.body.classList.remove('loading');
-  return { user: session.user, nameOf: (e) => names.get(e?.toLowerCase()) ?? e };
+  return { user: session.user, members, nameOf: (e) => names.get(e?.toLowerCase()) ?? e };
 }
 
 /**
@@ -112,8 +114,10 @@ function renderField(f) {
     return h('label', { class: 'field inline' },
       h('input', { type: 'checkbox', name: f.name, checked: !!f.value }), h('span', {}, f.label));
   }
+  // Select options are strings, or { value, label } when the stored value differs from what's shown.
+  const options = (f.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
   const control = f.type === 'select'
-    ? h('select', { name: f.name }, f.options.map((o) => h('option', { value: o, selected: o === f.value }, o)))
+    ? h('select', { name: f.name }, options.map((o) => h('option', { value: o.value, selected: o.value === f.value }, o.label)))
     : h('input', {
         name: f.name,
         type: f.type === 'money' ? 'text' : f.type ?? 'text',

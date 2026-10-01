@@ -64,7 +64,12 @@ const fromUrl = new URLSearchParams(location.search).get('month');
 let month = MONTH_RE.test(fromUrl ?? '') ? fromUrl : thisMonth;
 let data = null;
 let nameOf = (email) => email;
+let members = [];
+let me = null;
 let loadSeq = 0;
+
+// Each person keeps the same color everywhere: p1, p2 by their fixed position in `members`.
+const personClass = (email) => `p${members.findIndex((m) => m.email === email?.toLowerCase()) + 1}`;
 
 async function fetchMonth(m) {
   const active = (table) =>
@@ -82,13 +87,16 @@ async function fetchMonth(m) {
     bills: bills
       .map((b) => {
         const p = paid.get(b.id);
-        return { ...b, paid_at: p?.paid_at ?? null, paid_amount_cents: p?.amount_cents ?? null, paid_by_name: p && nameOf(p.paid_by) };
+        return {
+          ...b, paid_at: p?.paid_at ?? null, paid_amount_cents: p?.amount_cents ?? null,
+          paid_by: p?.paid_by ?? null, paid_by_name: p && nameOf(p.paid_by),
+        };
       })
       .sort((a, b) => a.due_day - b.due_day || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })),
     income: income
       .map((i) => ({ ...i, created_by_name: nameOf(i.created_by) }))
       .sort((a, b) => b.recurring - a.recurring || b.amount_cents - a.amount_cents),
-    expenses: expenses.map((e) => ({ ...e, created_by_name: nameOf(e.created_by) })),
+    expenses: expenses.map((e) => ({ ...e, paid_by_name: nameOf(e.paid_by) })),
   };
 }
 
@@ -150,6 +158,65 @@ function render() {
     ...(income.length ? income.map(incomeRow) : [empty('No income for this month yet.')]));
   document.getElementById('expenses').replaceChildren(
     ...(expenses.length ? expenses.map(expenseRow) : [empty('Nothing spent yet this month.')]));
+
+  renderWhoPaid(paid, expenses);
+  renderCategories(bills, expenses);
+}
+
+const pct = (part, whole) => `${Math.round((part / whole) * 100)}%`;
+
+function renderWhoPaid(paidBills, expenses) {
+  const people = members.map((m) => {
+    const bills = sum(paidBills.filter((b) => b.paid_by === m.email), billAmount);
+    const spent = sum(expenses.filter((e) => e.paid_by === m.email), (e) => e.amount_cents);
+    return { ...m, bills, spent, total: bills + spent };
+  });
+  const total = sum(people, (p) => p.total);
+  const el = document.getElementById('who-paid');
+  if (!total) return el.replaceChildren(h('p', { class: 'empty' }, 'Nothing paid yet this month.'));
+
+  const label = (p) => `${p.name}: ${money(p.total)} (${pct(p.total, total)})`;
+  const children = [
+    h('div', { class: 'split', role: 'img', 'aria-label': people.map(label).join(', ') },
+      people.filter((p) => p.total).map((p) =>
+        h('span', { class: personClass(p.email), style: { flex: String(p.total) }, title: label(p) }))),
+    h('ul', { class: 'people' }, people.map((p) =>
+      h('li', { class: `person ${personClass(p.email)}` },
+        h('span', { class: 'swatch', 'aria-hidden': 'true' }),
+        h('div', { class: 'who' },
+          h('b', {}, p.name),
+          h('div', { class: 'detail' }, `Bills ${money(p.bills)} · Spending ${money(p.spent)}`)),
+        h('div', { class: 'amt' }, money(p.total)),
+        h('div', { class: 'share' }, pct(p.total, total))))),
+  ];
+
+  // With two people, show what it would take to split the month 50/50.
+  if (people.length === 2) {
+    const [a, b] = people;
+    const owed = Math.abs(a.total - b.total) / 2;
+    const [over, under] = a.total > b.total ? [a, b] : [b, a];
+    children.push(h('p', { class: 'settle' }, owed < 1
+      ? 'Even split: you’re square this month.'
+      : ['Even split: ', h('b', {}, under.name), ' would owe ', h('b', {}, over.name), ' ', h('b', {}, money(Math.round(owed))), '.']));
+  }
+  el.replaceChildren(...children);
+}
+
+function renderCategories(bills, expenses) {
+  const totals = new Map();
+  for (const b of bills) totals.set(b.category, (totals.get(b.category) ?? 0) + billAmount(b));
+  for (const e of expenses) totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount_cents);
+  const rows = [...totals].filter(([, cents]) => cents > 0).sort((a, b) => b[1] - a[1]);
+  const el = document.getElementById('categories');
+  if (!rows.length) return el.replaceChildren(h('p', { class: 'empty' }, 'Add bills or spending to see where the money goes.'));
+
+  const total = sum(rows, ([, cents]) => cents);
+  const max = rows[0][1];
+  el.replaceChildren(h('ul', { class: 'cats' }, rows.map(([category, cents]) =>
+    h('li', { class: 'cat', title: `${category}: ${money(cents)} (${pct(cents, total)} of the month)` },
+      h('span', { class: 'name' }, category),
+      h('span', { class: 'bar', 'aria-hidden': 'true' }, h('span', { style: { width: `${(cents / max) * 100}%` } })),
+      h('span', { class: 'amt' }, money(cents), h('small', {}, pct(cents, total)))))));
 }
 
 function stat(label, value, sub, cls = '', tone = '') {
@@ -167,8 +234,20 @@ function actions(label, onEdit, onDelete) {
     h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Remove ${label}`, title: 'Remove', onclick: onDelete, innerHTML: ICONS.trash }));
 }
 
+// Clicking "Paid by X" hands the payment to the next person, for when the other one paid it.
+function switchPayer(b) {
+  const i = members.findIndex((m) => m.email === b.paid_by);
+  const next = members[(i + 1) % members.length];
+  act(() => q(sb.from('bill_payments').update({ paid_by: next.email }).eq('bill_id', b.id).eq('month', month)));
+}
+
 function billStatus(b) {
-  if (b.paid_at) return h('span', { class: 'tag paid' }, b.paid_by_name ? `Paid by ${b.paid_by_name}` : 'Paid');
+  if (b.paid_at) {
+    return members.length > 1
+      ? h('button', { class: 'tag paid switch', type: 'button', title: 'Click to change who paid', onclick: () => switchPayer(b) },
+          `Paid by ${b.paid_by_name ?? '?'} ⇄`)
+      : h('span', { class: 'tag paid' }, b.paid_by_name ? `Paid by ${b.paid_by_name}` : 'Paid');
+  }
   const days = Math.round((dueDate(month, b.due_day) - today()) / 86_400_000);
   if (days < 0) return h('span', { class: 'tag overdue' }, 'Overdue');
   if (days <= 3) return h('span', { class: 'tag soon' }, days === 0 ? 'Due today' : `Due in ${days}d`);
@@ -221,7 +300,7 @@ function expenseRow(e) {
     h('div', { class: 'row-main' },
       h('div', { class: 'row-title' }, e.description),
       h('div', { class: 'row-sub' },
-        [shortDate(new Date(y, mo - 1, d)), e.category, e.created_by_name && `by ${e.created_by_name}`]
+        [shortDate(new Date(y, mo - 1, d)), e.category, e.paid_by_name && `${e.paid_by_name} paid`]
           .filter(Boolean).join(' · '))),
     h('div', { class: 'row-amt' }, money(e.amount_cents)),
     actions(e.description, () => expenseForm(e),
@@ -300,11 +379,18 @@ function expenseForm(expense) {
         { name: 'amount', label: 'Amount ($)', type: 'money', value: expense && dollars(expense.amount_cents), placeholder: '0.00', required: true },
         { name: 'spent_on', label: 'Date', type: 'date', value: expense?.spent_on ?? defaultDay, required: true },
       ] },
-      { name: 'category', label: 'Category', type: 'select', options: SPEND_CATEGORIES, value: expense?.category ?? 'Groceries' },
+      { row: [
+        { name: 'category', label: 'Category', type: 'select', options: SPEND_CATEGORIES, value: expense?.category ?? 'Groceries' },
+        { name: 'paid_by', label: 'Paid by', type: 'select', options: members.map((m) => ({ value: m.email, label: m.name })),
+          value: expense?.paid_by ?? me },
+      ] },
     ],
     submitLabel: expense ? 'Save' : 'Add',
     onSubmit: async (v) => {
-      const row = { description: v.description, amount_cents: toCents(v.amount), spent_on: v.spent_on, category: v.category };
+      const row = {
+        description: v.description, amount_cents: toCents(v.amount), spent_on: v.spent_on,
+        category: v.category, paid_by: v.paid_by,
+      };
       await q(expense
         ? sb.from('expenses').update(row).eq('id', expense.id)
         : sb.from('expenses').insert(row));
@@ -323,7 +409,9 @@ document.getElementById('add-income').addEventListener('click', () => incomeForm
 document.getElementById('add-expense').addEventListener('click', () => expenseForm());
 
 try {
-  ({ nameOf } = await initShell());
+  let user;
+  ({ user, nameOf, members } = await initShell());
+  me = user.email.toLowerCase();
   await load();
 
   // Refresh when the other person changes something.
