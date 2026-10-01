@@ -1,0 +1,15 @@
+node_modules/
+.env
+
+# Old self-hosted Node version, replaced by docs/ + Supabase. Safe to delete.
+data/
+public/
+views/
+lib/
+routes/
+scripts/
+server.js
+db.js
+package.json
+package-lock.json
+.env.example

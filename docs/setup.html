@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'">
+  <meta name="referrer" content="no-referrer">
+  <title>Set your password · Ryana</title>
+  <link rel="icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body>
+  <main class="auth">
+    <div class="auth-card">
+      <div class="brand"><span class="brand-mark">R</span>Ryana</div>
+      <p class="lede" id="lede">Checking your link…</p>
+      <form id="setup-form" class="hidden">
+        <input type="email" name="email" autocomplete="username" class="hidden" id="email" readonly>
+        <label class="field"><span>New password</span><input name="password" type="password" autocomplete="new-password" minlength="10" required></label>
+        <label class="field"><span>Confirm password</span><input name="confirm" type="password" autocomplete="new-password" minlength="10" required></label>
+        <p class="muted small">At least 10 characters.</p>
+        <p class="form-error" id="error" role="alert"></p>
+        <button class="btn" type="submit">Save and continue</button>
+      </form>
+    </div>
+  </main>
+  <script src="assets/vendor/supabase.js"></script>
+  <script type="module" src="assets/setup.js"></script>
+</body>
+</html>

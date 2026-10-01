@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'">
+  <title>Budget · Ryana</title>
+  <link rel="icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="loading">
+  <header class="topbar">
+    <a class="brand" href="budget.html"><span class="brand-mark">R</span>Ryana</a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="budget.html" aria-current="page">Budget</a>
+      <span class="soon" title="Coming soon">Shopping<small>soon</small></span>
+      <span class="soon" title="Coming soon">To-dos<small>soon</small></span>
+    </nav>
+    <div class="me">
+      <span class="avatar" id="me-initial" aria-hidden="true"></span>
+      <span class="me-name" id="me-name"></span>
+      <button class="link" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div class="page-head">
+      <h1>Budget</h1>
+      <div class="month-switch">
+        <button class="icon-btn" id="prev" type="button" aria-label="Previous month">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 5 8l5 5"/></svg>
+        </button>
+        <h2 id="month-label" aria-live="polite"></h2>
+        <button class="icon-btn" id="next" type="button" aria-label="Next month">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>
+        </button>
+        <button class="btn secondary small" id="this-month" type="button">This month</button>
+      </div>
+    </div>
+
+    <section class="summary" id="summary" aria-label="Month summary"></section>
+
+    <section class="card" aria-labelledby="bills-h">
+      <div class="card-head">
+        <h3 id="bills-h">Bills</h3>
+        <span class="muted" id="bills-meta"></span>
+        <button class="btn small" type="button" id="add-bill">+ Add bill</button>
+      </div>
+      <div class="progress" aria-hidden="true"><span id="bills-progress"></span></div>
+      <ul class="rows" id="bills"></ul>
+    </section>
+
+    <div class="grid-2">
+      <section class="card" aria-labelledby="income-h">
+        <div class="card-head">
+          <h3 id="income-h">Income</h3>
+          <button class="btn small" type="button" id="add-income">+ Add income</button>
+        </div>
+        <ul class="rows" id="income"></ul>
+      </section>
+
+      <section class="card" aria-labelledby="spend-h">
+        <div class="card-head">
+          <h3 id="spend-h">Spending</h3>
+          <button class="btn small" type="button" id="add-expense">+ Add spending</button>
+        </div>
+        <ul class="rows" id="expenses"></ul>
+      </section>
+    </div>
+  </main>
+
+  <dialog id="dialog"><form id="dialog-form" novalidate></form></dialog>
+  <div class="toast hidden" id="toast" role="status"></div>
+
+  <script src="assets/vendor/supabase.js"></script>
+  <script type="module" src="assets/budget.js"></script>
+</body>
+</html>
