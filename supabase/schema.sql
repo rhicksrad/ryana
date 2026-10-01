@@ -110,6 +110,9 @@ create policy "members only" on public.expenses
   for all to authenticated using (public.is_member()) with check (public.is_member());
 
 revoke all on public.members, public.bills, public.bill_payments, public.income, public.expenses from anon;
+grant select on public.members to authenticated;
+grant select, insert, update, delete on public.bills, public.bill_payments, public.income, public.expenses to authenticated;
+grant usage, select on sequence public.bills_id_seq, public.income_id_seq, public.expenses_id_seq to authenticated;
 
 -- ============================================================
 -- Edits that keep history. Changing or removing a recurring item applies
