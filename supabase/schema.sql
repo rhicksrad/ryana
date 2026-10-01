@@ -230,13 +230,69 @@ grant execute on function public.save_bill, public.remove_bill, public.save_inco
   to authenticated;
 
 -- ============================================================
+-- Shopping lists and to-dos.
+-- ============================================================
+
+create table if not exists public.shopping_lists (
+  id         bigint generated always as identity primary key,
+  name       text not null check (char_length(name) between 1 and 40),
+  created_by text not null default public.my_email(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.shopping_items (
+  id         bigint generated always as identity primary key,
+  list_id    bigint not null references public.shopping_lists (id) on delete cascade,
+  name       text not null check (char_length(name) between 1 and 80),
+  quantity   text check (char_length(quantity) <= 20),
+  checked    boolean not null default false,
+  checked_by text,
+  checked_at timestamptz,
+  created_by text not null default public.my_email(),
+  created_at timestamptz not null default now()
+);
+create index if not exists shopping_items_list on public.shopping_items (list_id);
+
+create table if not exists public.todos (
+  id          bigint generated always as identity primary key,
+  title       text not null check (char_length(title) between 1 and 120),
+  notes       text check (char_length(notes) <= 1000),
+  due_on      date,
+  assigned_to text,          -- a member's email, or null for "either of us"
+  done        boolean not null default false,
+  done_by     text,
+  done_at     timestamptz,
+  created_by  text not null default public.my_email(),
+  created_at  timestamptz not null default now()
+);
+
+do $$
+declare t text;
+begin
+  foreach t in array array['shopping_lists', 'shopping_items', 'todos'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "members only" on public.%I', t);
+    execute format('create policy "members only" on public.%I for all to authenticated '
+                   'using (public.is_member()) with check (public.is_member())', t);
+    execute format('revoke all on public.%I from anon', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
+    execute format('grant usage, select on sequence public.%I to authenticated', t || '_id_seq');
+  end loop;
+end $$;
+
+-- Start with one list so the page isn't empty.
+insert into public.shopping_lists (name, created_by)
+select 'Groceries', 'setup' where not exists (select 1 from public.shopping_lists);
+
+-- ============================================================
 -- Live updates: when one of you changes something, the other's screen refreshes.
 -- ============================================================
 
 do $$
 declare t text;
 begin
-  foreach t in array array['bills', 'bill_payments', 'income', 'expenses'] loop
+  foreach t in array array['bills', 'bill_payments', 'income', 'expenses',
+                           'shopping_lists', 'shopping_items', 'todos'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

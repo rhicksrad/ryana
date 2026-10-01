@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'">
+  <title>To-dos · Ryana</title>
+  <link rel="icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="loading">
+  <header class="topbar">
+    <a class="brand" href="budget.html"><span class="brand-mark">R</span>Ryana</a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="budget.html">Budget</a>
+      <a href="shopping.html">Shopping</a>
+      <a href="todos.html" aria-current="page">To-dos</a>
+    </nav>
+    <div class="me">
+      <span class="avatar" id="me-initial" aria-hidden="true"></span>
+      <span class="me-name" id="me-name"></span>
+      <button class="link" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="wrap narrow">
+    <section class="hero compact empty" id="hero" aria-label="Photos"></section>
+
+    <div class="page-head">
+      <h1>To-dos</h1>
+    </div>
+
+    <div class="chips" id="filters" role="group" aria-label="Show to-dos for"></div>
+
+    <form class="quick-add card" id="add-todo" autocomplete="off">
+      <input name="title" placeholder="Add a to-do…" aria-label="To-do" maxlength="120" required>
+      <input name="due_on" type="date" aria-label="Due date (optional)" title="Due date (optional)">
+      <select name="assigned_to" aria-label="Who" title="Who's doing it"></select>
+      <button class="btn" type="submit">Add</button>
+    </form>
+
+    <div id="groups"></div>
+
+    <details class="card done-card" id="done-card">
+      <summary class="card-head"><h3>Done</h3><span class="muted" id="done-count"></span></summary>
+      <ul class="rows" id="done"></ul>
+    </details>
+  </main>
+
+  <dialog id="dialog"><form id="dialog-form" novalidate></form></dialog>
+  <div class="toast hidden" id="toast" role="status"></div>
+
+  <script src="assets/vendor/supabase.js"></script>
+  <script type="module" src="assets/todos.js"></script>
+</body>
+</html>

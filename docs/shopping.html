@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; base-uri 'none'; form-action 'self'">
+  <title>Shopping · Ryana</title>
+  <link rel="icon" href="assets/icon.svg">
+  <link rel="stylesheet" href="assets/app.css">
+</head>
+<body class="loading">
+  <header class="topbar">
+    <a class="brand" href="budget.html"><span class="brand-mark">R</span>Ryana</a>
+    <nav class="tabs" aria-label="Sections">
+      <a href="budget.html">Budget</a>
+      <a href="shopping.html" aria-current="page">Shopping</a>
+      <a href="todos.html">To-dos</a>
+    </nav>
+    <div class="me">
+      <span class="avatar" id="me-initial" aria-hidden="true"></span>
+      <span class="me-name" id="me-name"></span>
+      <button class="link" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <main class="wrap narrow">
+    <section class="hero compact empty" id="hero" aria-label="Photos"></section>
+
+    <div class="page-head">
+      <h1>Shopping</h1>
+      <div class="head-actions">
+        <button class="icon-btn" type="button" id="rename-list" aria-label="Rename this list" title="Rename list"></button>
+        <button class="icon-btn" type="button" id="delete-list" aria-label="Delete this list" title="Delete list"></button>
+      </div>
+    </div>
+
+    <div class="chips" id="lists" role="group" aria-label="Lists"></div>
+
+    <form class="quick-add card" id="add-item" autocomplete="off">
+      <input name="name" placeholder="Add an item… (try “2 avocados”)" aria-label="Item" maxlength="80" required>
+      <input name="quantity" class="qty" placeholder="Qty" aria-label="Quantity" maxlength="20">
+      <button class="btn" type="submit">Add</button>
+    </form>
+
+    <section class="card" aria-labelledby="need-h">
+      <div class="card-head">
+        <h3 id="need-h">To get</h3>
+        <span class="muted" id="need-count"></span>
+      </div>
+      <ul class="rows" id="need"></ul>
+    </section>
+
+    <section class="card" aria-labelledby="got-h" id="got-card">
+      <div class="card-head">
+        <h3 id="got-h">In the cart</h3>
+        <span class="muted" id="got-count"></span>
+        <button class="btn secondary small" type="button" id="clear-got">Clear checked</button>
+      </div>
+      <ul class="rows" id="got"></ul>
+    </section>
+  </main>
+
+  <dialog id="dialog"><form id="dialog-form" novalidate></form></dialog>
+  <div class="toast hidden" id="toast" role="status"></div>
+
+  <script src="assets/vendor/supabase.js"></script>
+  <script type="module" src="assets/shopping.js"></script>
+</body>
+</html>

@@ -18,6 +18,35 @@ export function h(tag, props = {}, ...children) {
   return el;
 }
 
+export const ICONS = {
+  edit: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-3 1 1-3 7.5-7.5z"/></svg>',
+  trash: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>',
+};
+
+/** Edit + remove icon buttons for the end of a row. */
+export function rowActions(label, onEdit, onDelete) {
+  return h('div', { class: 'row-actions' },
+    h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Edit ${label}`, title: 'Edit', onclick: onEdit, innerHTML: ICONS.edit }),
+    h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Remove ${label}`, title: 'Remove', onclick: onDelete, innerHTML: ICONS.trash }));
+}
+
+/** CSS class giving a member their fixed color (p1, p2) by position in the members list. */
+export const personClass = (members, email) =>
+  `p${members.findIndex((m) => m.email === email?.toLowerCase()) + 1}`;
+
+/** Call onChange (debounced) whenever the other person changes one of these tables. */
+export function live(tables, onChange) {
+  let timer;
+  const channel = sb.channel(`live-${tables.join('-')}`);
+  for (const table of tables) {
+    channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
+      clearTimeout(timer);
+      timer = setTimeout(onChange, 400);
+    });
+  }
+  channel.subscribe();
+}
+
 let toastTimer;
 export function toast(message) {
   const el = document.getElementById('toast');
@@ -118,6 +147,8 @@ function renderField(f) {
   const options = (f.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o));
   const control = f.type === 'select'
     ? h('select', { name: f.name }, options.map((o) => h('option', { value: o.value, selected: o.value === f.value }, o.label)))
+    : f.type === 'textarea'
+    ? h('textarea', { name: f.name, rows: 3, placeholder: f.placeholder, maxlength: f.maxlength, value: f.value ?? '' })
     : h('input', {
         name: f.name,
         type: f.type === 'money' ? 'text' : f.type ?? 'text',

@@ -1,5 +1,5 @@
 import { sb, q } from './client.js';
-import { h, toast, initShell, openForm } from './shell.js';
+import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js';
 import { initPhotos } from './photos.js';
 
 const BILL_CATEGORIES = ['Housing', 'Utilities', 'Phone & Internet', 'Insurance', 'Transportation',
@@ -24,10 +24,6 @@ function toDueDay(value) {
   return n;
 }
 
-const ICONS = {
-  edit: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5l2 2L6 12l-3 1 1-3 7.5-7.5z"/></svg>',
-  trash: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5"/></svg>',
-};
 
 // ---------- Dates ----------
 
@@ -70,7 +66,7 @@ let me = null;
 let loadSeq = 0;
 
 // Each person keeps the same color everywhere: p1, p2 by their fixed position in `members`.
-const personClass = (email) => `p${members.findIndex((m) => m.email === email?.toLowerCase()) + 1}`;
+const personClass = (email) => colorOf(members, email);
 
 async function fetchMonth(m) {
   const active = (table) =>
@@ -229,11 +225,6 @@ function stat(label, value, sub, cls = '', tone = '') {
 
 const empty = (text) => h('li', { class: 'empty' }, text);
 
-function actions(label, onEdit, onDelete) {
-  return h('div', { class: 'row-actions' },
-    h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Edit ${label}`, title: 'Edit', onclick: onEdit, innerHTML: ICONS.edit }),
-    h('button', { class: 'icon-btn', type: 'button', 'aria-label': `Remove ${label}`, title: 'Remove', onclick: onDelete, innerHTML: ICONS.trash }));
-}
 
 // Clicking "Paid by X" hands the payment to the next person, for when the other one paid it.
 function switchPayer(b) {
@@ -279,7 +270,7 @@ function billRow(b) {
         b.autopay ? h('span', { class: 'tag' }, 'Autopay') : null, billStatus(b)),
       h('div', { class: 'row-sub' }, `Due ${shortDate(dueDate(month, b.due_day))} · ${b.category}`)),
     h('div', { class: 'row-amt' }, money(billAmount(b))),
-    actions(b.name, () => billForm(b), () => removeRecurring('remove_bill', b.id, b.name, b.start_month)));
+    rowActions(b.name, () => billForm(b), () => removeRecurring('remove_bill', b.id, b.name, b.start_month)));
 }
 
 function incomeRow(i) {
@@ -290,7 +281,7 @@ function incomeRow(i) {
         [i.recurring ? 'Every month' : 'This month only', i.created_by_name && `added by ${i.created_by_name}`]
           .filter(Boolean).join(' · '))),
     h('div', { class: 'row-amt' }, money(i.amount_cents)),
-    actions(i.source, () => incomeForm(i), () => (i.recurring
+    rowActions(i.source, () => incomeForm(i), () => (i.recurring
       ? removeRecurring('remove_income', i.id, i.source, i.start_month)
       : confirmThen(`Remove "${i.source}"?`, () => sb.rpc('remove_income', { p_id: i.id, p_month: month })))));
 }
@@ -304,7 +295,7 @@ function expenseRow(e) {
         [shortDate(new Date(y, mo - 1, d)), e.category, e.paid_by_name && `${e.paid_by_name} paid`]
           .filter(Boolean).join(' · '))),
     h('div', { class: 'row-amt' }, money(e.amount_cents)),
-    actions(e.description, () => expenseForm(e),
+    rowActions(e.description, () => expenseForm(e),
       () => confirmThen(`Remove "${e.description}"?`, () => sb.from('expenses').delete().eq('id', e.id))));
 }
 
@@ -417,13 +408,7 @@ try {
   await load();
 
   // Refresh when the other person changes something.
-  let refreshTimer;
-  sb.channel('budget')
-    .on('postgres_changes', { event: '*', schema: 'public' }, () => {
-      clearTimeout(refreshTimer);
-      refreshTimer = setTimeout(load, 400);
-    })
-    .subscribe();
+  live(['bills', 'bill_payments', 'income', 'expenses'], load);
 } catch (err) {
   toast(err.message);
 }
