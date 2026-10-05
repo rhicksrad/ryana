@@ -86,6 +86,20 @@ update public.expenses set paid_by = created_by where paid_by is null;
 alter table public.expenses alter column paid_by set default public.my_email();
 alter table public.expenses alter column paid_by set not null;
 
+-- Money one of you sent the other, e.g. to settle up. Not spending: it only evens out who has paid what.
+create table if not exists public.transfers (
+  id           bigint generated always as identity primary key,
+  sent_on      date not null,
+  from_email   text not null,
+  to_email     text not null,
+  amount_cents integer not null check (amount_cents between 1 and 1000000000),
+  note         text check (char_length(note) <= 80),
+  created_by   text not null default public.my_email(),
+  created_at   timestamptz not null default now(),
+  check (to_email <> from_email)
+);
+create index if not exists transfers_sent_on on public.transfers (sent_on);
+
 -- ============================================================
 -- Row-level security: members only, for everything.
 -- ============================================================
@@ -95,6 +109,7 @@ alter table public.bills         enable row level security;
 alter table public.bill_payments enable row level security;
 alter table public.income        enable row level security;
 alter table public.expenses      enable row level security;
+alter table public.transfers     enable row level security;
 
 drop policy if exists "members can read members" on public.members;
 create policy "members can read members" on public.members
@@ -116,10 +131,16 @@ drop policy if exists "members only" on public.expenses;
 create policy "members only" on public.expenses
   for all to authenticated using (public.is_member()) with check (public.is_member());
 
-revoke all on public.members, public.bills, public.bill_payments, public.income, public.expenses from anon;
+drop policy if exists "members only" on public.transfers;
+create policy "members only" on public.transfers
+  for all to authenticated using (public.is_member()) with check (public.is_member());
+
+revoke all on public.members, public.bills, public.bill_payments, public.income, public.expenses, public.transfers from anon;
 grant select on public.members to authenticated;
-grant select, insert, update, delete on public.bills, public.bill_payments, public.income, public.expenses to authenticated;
-grant usage, select on sequence public.bills_id_seq, public.income_id_seq, public.expenses_id_seq to authenticated;
+grant select, insert, update, delete on public.bills, public.bill_payments, public.income, public.expenses, public.transfers
+  to authenticated;
+grant usage, select on sequence public.bills_id_seq, public.income_id_seq, public.expenses_id_seq, public.transfers_id_seq
+  to authenticated;
 
 -- ============================================================
 -- Edits that keep history. Changing or removing a recurring item applies
@@ -291,7 +312,7 @@ select 'Groceries', 'setup' where not exists (select 1 from public.shopping_list
 do $$
 declare t text;
 begin
-  foreach t in array array['bills', 'bill_payments', 'income', 'expenses',
+  foreach t in array array['bills', 'bill_payments', 'income', 'expenses', 'transfers',
                            'shopping_lists', 'shopping_items', 'todos'] loop
     if not exists (
       select 1 from pg_publication_tables

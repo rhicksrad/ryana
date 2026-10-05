@@ -316,6 +316,13 @@ details.done-card:not([open]) > summary { padding-bottom: 16px; }
 .cat .amt { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; white-space: nowrap; }
 .cat .amt small { font-weight: 400; color: var(--muted); margin-left: 6px; }
 
+/* Quick-add buttons for everyday spending; transfers between people. */
+.card .chips.quick-spend { margin: 0; padding: 0 18px 14px; }
+.chip.quick::before { content: "+ "; color: var(--accent); }
+.transfer-arrow { color: var(--muted); font-weight: 400; }
+.settle .link { margin-left: 8px; color: var(--accent); font-weight: 600; font-size: 14px; }
+.settle .link:hover { color: var(--accent-hover); }
+
 .tag.paid.switch { border: 0; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
 .tag.paid.switch:hover { box-shadow: inset 0 0 0 1px var(--accent); }
 

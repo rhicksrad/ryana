@@ -40,8 +40,15 @@ choose a password. "Forgot password?" on the sign-in page sends a reset link the
 - **Bills** repeat monthly from the month they're added. Tick the box when one's paid; the app records who paid it.
   Edits and removals apply from the month you're viewing onward. Earlier months keep their history.
 - **Income** can repeat monthly or count for one month only.
-- **Spending** covers one-off purchases, dated and categorized.
+- **Spending** covers everything that isn't a bill: groceries, eating out, gas, and so on.
+  Tap **+ Groceries**, **+ Dining out**, **+ Gas** or **+ Household** and just enter the amount. The description is
+  optional, and past ones autocomplete. With **+ Add spending**, picking a past place (say "Chipotle") fills in its category.
+- **Transfers** record money one of you sent the other (e.g. paying back your half). They count toward the
+  even-split line in "Who paid", not toward spending. **Record payment** on that line fills in the amount that squares you up.
 - **Left over** = income − bills − spending for the month.
+
+> **Updating from an earlier version?** Re-run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor
+> to add the `transfers` table. It's safe to re-run. Until then the Transfers card says so and everything else works.
 
 ## Shopping
 

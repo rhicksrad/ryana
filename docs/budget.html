@@ -70,6 +70,16 @@
       <ul class="rows" id="bills"></ul>
     </section>
 
+    <section class="card" aria-labelledby="spend-h">
+      <div class="card-head">
+        <h3 id="spend-h">Spending</h3>
+        <span class="muted">Groceries, eating out, anything that isn't a bill</span>
+        <button class="btn small" type="button" id="add-expense">+ Add spending</button>
+      </div>
+      <div class="chips quick-spend" id="quick-spend" role="group" aria-label="Quick add"></div>
+      <ul class="rows" id="expenses"></ul>
+    </section>
+
     <div class="grid-2">
       <section class="card" aria-labelledby="income-h">
         <div class="card-head">
@@ -79,12 +89,13 @@
         <ul class="rows" id="income"></ul>
       </section>
 
-      <section class="card" aria-labelledby="spend-h">
+      <section class="card" aria-labelledby="transfers-h" id="transfers-card">
         <div class="card-head">
-          <h3 id="spend-h">Spending</h3>
-          <button class="btn small" type="button" id="add-expense">+ Add spending</button>
+          <h3 id="transfers-h">Transfers</h3>
+          <span class="muted">Between the two of you</span>
+          <button class="btn small" type="button" id="add-transfer">+ Add transfer</button>
         </div>
-        <ul class="rows" id="expenses"></ul>
+        <ul class="rows" id="transfers"></ul>
       </section>
     </div>
   </main>
