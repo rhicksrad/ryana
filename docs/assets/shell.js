@@ -91,10 +91,11 @@ export async function initShell() {
 }
 
 /**
- * Show a form in the shared <dialog>. Each field: { name, label, type, value, options, required, ... }.
+ * Show a form in the shared <dialog>. Each field: { name, label, type, value, options, suggestions, required, ... }.
+ * onInput(input, elements) runs as the user types or picks, e.g. to fill one field from another.
  * onSubmit receives the values; throw to show an error and keep the dialog open.
  */
-export function openForm({ title, hint, fields, submitLabel = 'Save', onSubmit }) {
+export function openForm({ title, hint, fields, submitLabel = 'Save', onInput, onSubmit }) {
   const dialog = document.getElementById('dialog');
   const form = document.getElementById('dialog-form');
   const error = h('p', { class: 'form-error', role: 'alert' });
@@ -102,7 +103,7 @@ export function openForm({ title, hint, fields, submitLabel = 'Save', onSubmit }
 
   form.replaceChildren(
     h('h3', {}, title),
-    hint && h('p', { class: 'hint' }, hint),
+    hint ? h('p', { class: 'hint' }, hint) : '',
     ...fields.map(renderField),
     error,
     h('div', { class: 'actions' },
@@ -110,6 +111,7 @@ export function openForm({ title, hint, fields, submitLabel = 'Save', onSubmit }
       submit),
   );
 
+  form.oninput = onInput ? (e) => onInput(e.target, form.elements) : null;
   form.onsubmit = async (e) => {
     e.preventDefault();
     error.textContent = '';
@@ -158,6 +160,10 @@ function renderField(f) {
         min: f.min, max: f.max,
         autocomplete: 'off',
         required: f.required,
+        list: f.suggestions?.length ? `${f.name}-suggestions` : null,
       });
-  return h('label', { class: 'field' }, h('span', {}, f.label), control);
+  // Suggestions show as a native autocomplete dropdown under the input.
+  const datalist = !f.suggestions?.length ? null
+    : h('datalist', { id: `${f.name}-suggestions` }, f.suggestions.map((value) => h('option', { value })));
+  return h('label', { class: 'field' }, h('span', {}, f.label), control, datalist);
 }
