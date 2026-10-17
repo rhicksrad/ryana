@@ -9,6 +9,11 @@ export const sb = configured
     })
   : null;
 
+// Service worker for "Add to Home Screen" installs and offline fallback (see sw.js).
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register(new URL('../sw.js', import.meta.url)).catch(() => {});
+}
+
 /** Absolute URL of another page of this site (works under a GitHub Pages sub-path). */
 export const pageUrl = (page) => new URL(page, location.href).href;
 
