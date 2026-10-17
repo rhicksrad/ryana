@@ -1,6 +1,6 @@
-import { sb, q } from './client.js';
-import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js';
-import { initPhotos } from './photos.js';
+import { sb, q } from './client.js?v=20261017132817';
+import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261017132817';
+import { initPhotos } from './photos.js?v=20261017132817';
 
 const FILTER_KEY = 'ryana.todoFilter';
 const DONE_SHOWN = 30;
@@ -83,7 +83,7 @@ function render() {
     .map((g) => ({ ...g, rows: shown.filter(g.test) }))
     .filter((g) => g.rows.length)
     .map((g) => h('section', { class: `card group-${g.key}`, 'aria-label': g.title },
-      h('div', { class: 'card-head' }, h('h3', {}, g.title), h('span', { class: 'muted' }, String(g.rows.length))),
+      h('div', { class: 'card-head' }, h('h3', {}, g.title), h('span', { class: 'muted count' }, String(g.rows.length))),
       h('ul', { class: 'rows' }, g.rows.map(todoRow))));
 
   document.getElementById('groups').replaceChildren(...(sections.length ? sections : [
