@@ -1,6 +1,6 @@
-import { sb, q } from './client.js?v=20261017133225';
-import { h, toast, initShell, openForm, rowActions, ICONS, live } from './shell.js?v=20261017133225';
-import { initPhotos } from './photos.js?v=20261017133225';
+import { sb, q } from './client.js?v=20261017133436';
+import { h, toast, initShell, openForm, rowActions, ICONS, live } from './shell.js?v=20261017133436';
+import { initPhotos } from './photos.js?v=20261017133436';
 
 const LIST_KEY = 'ryana.shoppingList';
 

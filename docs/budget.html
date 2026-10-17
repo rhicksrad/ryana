@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ryana">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="assets/app.css?v=20261017133225">
+  <link rel="stylesheet" href="assets/app.css?v=20261017133436">
 </head>
 <body class="loading">
   <header class="topbar">
@@ -75,6 +75,7 @@
         <button class="btn small" type="button" id="add-bill">+ Add bill</button>
       </div>
       <div class="progress" aria-hidden="true"><span id="bills-progress"></span></div>
+      <button class="fold-toggle hidden" type="button" id="bills-fold" aria-controls="bills" aria-expanded="false"></button>
       <ul class="rows" id="bills"></ul>
     </section>
 
@@ -85,6 +86,7 @@
         <button class="btn small" type="button" id="add-expense">+ Add spending</button>
       </div>
       <div class="chips quick-spend" id="quick-spend" role="group" aria-label="Quick add"></div>
+      <button class="fold-toggle hidden" type="button" id="expenses-fold" aria-controls="expenses" aria-expanded="false"></button>
       <ul class="rows" id="expenses"></ul>
     </section>
 
@@ -112,6 +114,6 @@
   <div class="toast hidden" id="toast" role="status"></div>
 
   <script src="assets/vendor/supabase.js"></script>
-  <script type="module" src="assets/budget.js?v=20261017133225"></script>
+  <script type="module" src="assets/budget.js?v=20261017133436"></script>
 </body>
 </html>
