@@ -77,6 +77,8 @@ Invite and password-reset emails still open in the browser, so finish those ther
   look for "Subscribe", "iCal" or "Sync calendar"). The database fetches that link itself, every hour
   and whenever the calendar opens, so new shifts appear without anyone re-entering them.
   Work shows as thin bars under each day.
+- Ana's shifts come from **PEVS**: her Teamup schedule, read through the PEVS Worker
+  (`pevs.hicksrch.workers.dev`, sub-calendar "Ana Aghili"), synced the same way.
 
 ## Photos
 

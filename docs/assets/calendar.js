@@ -1,6 +1,6 @@
-import { sb, q } from './client.js?v=20261017134152';
-import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261017134152';
-import { initPhotos } from './photos.js?v=20261017134152';
+import { sb, q } from './client.js?v=20261017140918';
+import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261017140918';
+import { initPhotos } from './photos.js?v=20261017140918';
 
 // Family calendar: shared events plus each person's work, which comes from a weekly pattern
 // (e.g. Mon–Fri 7:30–4:30) or from their scheduling app's calendar link, synced by the database.
@@ -171,12 +171,14 @@ function renderSoon() {
     : [h('li', { class: 'empty' }, 'Nothing on the calendar for the next two weeks.')]));
 }
 
+const feedName = (w) => (w.teamup_subcalendar ? 'PEVS' : 'calendar link');
+
 function workSummary(w) {
   if (w.feed_url) {
-    if (w.feed_error) return `Calendar link isn't working: ${w.feed_error}`;
-    if (!w.feed_synced_at) return 'Calendar link · syncing…';
+    if (w.feed_error) return `${w.teamup_subcalendar ? 'PEVS' : 'Calendar link'} isn't working: ${w.feed_error}`;
+    if (!w.feed_synced_at) return `Syncing from ${feedName(w)}…`;
     const mins = Math.round((Date.now() - new Date(w.feed_synced_at)) / 60_000);
-    return `Synced from calendar link · ${mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : `${Math.round(mins / 60)} h ago`}`;
+    return `Synced from ${feedName(w)} · ${mins < 1 ? 'just now' : mins < 60 ? `${mins} min ago` : `${Math.round(mins / 60)} h ago`}`;
   }
   if (w.start_time && w.weekdays?.length) return `${daysLabel(w.weekdays)} · ${span(w.start_time, w.end_time)}`;
   return 'Not set up yet';
@@ -261,7 +263,9 @@ async function removeEvent(event) {
 function workForm(member, w) {
   openForm({
     title: `${member.name}'s work`,
-    hint: 'Either set regular hours, or paste the calendar link from a scheduling app (look for “Subscribe”, “iCal” or “Sync calendar”). A link wins over regular hours.',
+    hint: w.teamup_subcalendar
+      ? `${member.name}'s shifts come from PEVS (Teamup) automatically. Clear the link to use regular hours instead.`
+      : 'Either set regular hours, or paste the calendar link from a scheduling app (look for “Subscribe”, “iCal” or “Sync calendar”). A link wins over regular hours.',
     fields: [
       { name: 'weekdays', label: 'Work days', type: 'checks', value: (w.weekdays ?? []).map(String),
         options: [1, 2, 3, 4, 5, 6, 0].map((d) => ({ value: String(d), label: WEEKDAYS[d] })) },
@@ -269,7 +273,7 @@ function workForm(member, w) {
         { name: 'start_time', label: 'Starts', type: 'time', value: w.start_time?.slice(0, 5) ?? '' },
         { name: 'end_time', label: 'Ends', type: 'time', value: w.end_time?.slice(0, 5) ?? '' },
       ] },
-      { name: 'feed_url', label: 'Calendar link (optional)', type: 'url', value: w.feed_url ?? '', placeholder: 'https://… or webcal://…' },
+      { name: 'feed_url', label: w.teamup_subcalendar ? 'PEVS link' : 'Calendar link (optional)', type: 'url', value: w.feed_url ?? '', placeholder: 'https://… or webcal://…' },
     ],
     onSubmit: async (v) => {
       const feed = v.feed_url.replace(/^webcal:\/\//i, 'https://');
