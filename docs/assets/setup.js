@@ -1,4 +1,4 @@
-import { sb, configured } from './client.js?v=20261017132817';
+import { sb, configured } from './client.js?v=20261017133110';
 
 const form = document.getElementById('setup-form');
 const error = document.getElementById('error');

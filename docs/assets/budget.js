@@ -1,9 +1,11 @@
-import { sb, q } from './client.js?v=20261017132817';
-import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017132817';
-import { initPhotos } from './photos.js?v=20261017132817';
+import { sb, q } from './client.js?v=20261017133110';
+import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017133110';
+import { initPhotos } from './photos.js?v=20261017133110';
 
-const BILL_CATEGORIES = ['Housing', 'Utilities', 'Phone & Internet', 'Insurance', 'Transportation',
-  'Subscriptions', 'Debt', 'Health', 'Childcare', 'Other'];
+const BILL_CATEGORIES = ['Mortgage', 'Utilities', 'Insurance', 'Transportation', 'Subscriptions',
+  'Streaming & TV', 'Lawn care', 'Other'];
+// Old category names shown (and saved on the next edit) under their new name.
+const RENAMED_CATEGORIES = { Housing: 'Mortgage' };
 const SPEND_CATEGORIES = ['Groceries', 'Dining out', 'Gas', 'Household', 'Shopping', 'Entertainment',
   'Health', 'Gifts', 'Travel', 'Pets', 'Other'];
 // One-tap buttons for the everyday stuff, each opening the spending form already set to that category.
@@ -110,7 +112,7 @@ async function fetchMonth(m) {
       .map((b) => {
         const p = paid.get(b.id);
         return {
-          ...b, paid_at: p?.paid_at ?? null, paid_amount_cents: p?.amount_cents ?? null,
+          ...b, category: RENAMED_CATEGORIES[b.category] ?? b.category, paid_at: p?.paid_at ?? null, paid_amount_cents: p?.amount_cents ?? null,
           paid_by: p?.paid_by ?? null, paid_by_name: p && nameOf(p.paid_by),
         };
       })
@@ -188,7 +190,7 @@ function render() {
 
   document.getElementById('bills').replaceChildren(
     ...(bills.length ? bills.map(billRow)
-      : [empty('No bills yet. Add rent, utilities, phone, subscriptions — anything that repeats monthly.')]));
+      : [empty('No bills yet. Add the mortgage, utilities, streaming, lawn care — anything that repeats monthly.')]));
   document.getElementById('income').replaceChildren(
     ...(income.length ? income.map(incomeRow) : [empty('No income for this month yet.')]));
   document.getElementById('expenses').replaceChildren(
@@ -401,7 +403,9 @@ function billForm(bill) {
         { name: 'amount', label: 'Amount ($)', type: 'money', value: bill && dollars(bill.amount_cents), placeholder: '0.00', required: true },
         { name: 'due_day', label: 'Due day of month', type: 'number', min: 1, max: 31, value: bill?.due_day ?? '', placeholder: '1–31', required: true },
       ] },
-      { name: 'category', label: 'Category', type: 'select', options: BILL_CATEGORIES, value: bill?.category ?? 'Other' },
+      // A bill filed under a retired category keeps it as an option, so editing doesn't silently change it.
+      { name: 'category', label: 'Category', type: 'select', value: bill?.category ?? 'Other',
+        options: !bill || BILL_CATEGORIES.includes(bill.category) ? BILL_CATEGORIES : [...BILL_CATEGORIES, bill.category] },
       { name: 'autopay', label: 'On autopay', type: 'checkbox', value: !!bill?.autopay },
     ],
     submitLabel: bill ? 'Save' : 'Add bill',

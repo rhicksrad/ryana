@@ -1,6 +1,6 @@
-import { sb, q } from './client.js?v=20261017132817';
-import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261017132817';
-import { initPhotos } from './photos.js?v=20261017132817';
+import { sb, q } from './client.js?v=20261017133110';
+import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261017133110';
+import { initPhotos } from './photos.js?v=20261017133110';
 
 const FILTER_KEY = 'ryana.todoFilter';
 const DONE_SHOWN = 30;
