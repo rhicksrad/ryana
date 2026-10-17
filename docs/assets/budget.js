@@ -1,6 +1,6 @@
-import { sb, q } from './client.js?v=20261017133225';
-import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017133225';
-import { initPhotos } from './photos.js?v=20261017133225';
+import { sb, q } from './client.js?v=20261017133436';
+import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017133436';
+import { initPhotos } from './photos.js?v=20261017133436';
 
 const BILL_CATEGORIES = ['Mortgage', 'Utilities', 'Insurance', 'Transportation', 'Subscriptions',
   'Streaming & TV', 'Lawn care', 'Other'];
@@ -171,6 +171,30 @@ async function act(fn) {
 const billAmount = (b) => b.paid_amount_cents ?? b.amount_cents;
 const sum = (rows, f) => rows.reduce((total, r) => total + f(r), 0);
 
+// The bills and spending lists start folded behind a "Show N …" bar; their totals stay visible.
+const folds = {
+  bills: { open: false, count: 0, noun: ['bill', 'bills'] },
+  expenses: { open: false, count: 0, noun: ['purchase', 'purchases'] },
+};
+
+function setFold(id, count = folds[id].count) {
+  const fold = folds[id];
+  fold.count = count;
+  const btn = document.getElementById(`${id}-fold`);
+  const folded = !fold.open && count > 0; // an empty list shows its "nothing yet" hint instead
+  btn.closest('.card').classList.toggle('folded', folded);
+  btn.classList.toggle('hidden', count === 0);
+  btn.setAttribute('aria-expanded', String(!folded));
+  btn.textContent = folded ? `Show ${count} ${fold.noun[count === 1 ? 0 : 1]}` : 'Hide';
+}
+
+for (const id of Object.keys(folds)) {
+  document.getElementById(`${id}-fold`).addEventListener('click', () => {
+    folds[id].open = !folds[id].open;
+    setFold(id);
+  });
+}
+
 function render() {
   const { bills, income, expenses } = data;
   const transfers = data.transfers ?? [];
@@ -201,7 +225,9 @@ function render() {
     ...(income.length ? income.map(incomeRow) : [empty('No income for this month yet.')]));
   document.getElementById('expenses').replaceChildren(
     ...(expenses.length ? expenses.map(expenseRow)
-      : [empty('Nothing spent yet this month. Tap Groceries or Dining out above to add one in a few seconds.')]));
+      : [empty('Nothing spent yet this month. Tap Groceries or Restaurants above to add one in a few seconds.')]));
+  setFold('bills', bills.length);
+  setFold('expenses', expenses.length);
   renderTransfers(transfers);
 
   renderWhoPaid(paid, expenses, transfers);

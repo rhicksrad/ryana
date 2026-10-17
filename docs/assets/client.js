@@ -1,5 +1,5 @@
 // Supabase client shared by every page. Requires assets/vendor/supabase.js loaded first.
-import config from '../config.js?v=20261017133225';
+import config from '../config.js?v=20261017133436';
 
 export const configured = !/YOUR-/.test(config.supabaseUrl + config.supabaseKey);
 

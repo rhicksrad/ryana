@@ -310,6 +310,20 @@ details.done-card > summary::after { content: "Show"; margin-left: auto; font-si
 details.done-card[open] > summary::after { content: "Hide"; }
 details.done-card:not([open]) > summary { padding-bottom: 16px; }
 
+/* Fold bar for long lists (bills, spending). */
+.fold-toggle {
+  display: flex; width: 100%; align-items: center; justify-content: center; gap: 8px; padding: 11px 16px;
+  border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--accent);
+  font-weight: 600; font-size: 14px; cursor: pointer;
+}
+.fold-toggle:hover { background: var(--surface-2); }
+.fold-toggle::after {
+  content: ""; width: 7px; height: 7px; border: solid currentColor; border-width: 0 2px 2px 0;
+  transform: translateY(-2px) rotate(45deg); transition: transform .2s;
+}
+.fold-toggle[aria-expanded="true"]::after { transform: translateY(2px) rotate(-135deg); }
+.card.folded > .rows { display: none; }
+
 /* ---------- Insights: who paid, categories ---------- */
 .insights { margin-bottom: 20px; }
 .card-body { padding: 4px 18px 18px; }
