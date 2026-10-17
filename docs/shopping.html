@@ -14,7 +14,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Ryana">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="stylesheet" href="assets/app.css">
+  <link rel="stylesheet" href="assets/app.css?v=20261017132817">
 </head>
 <body class="loading">
   <header class="topbar">
@@ -53,7 +53,7 @@
     <section class="card" aria-labelledby="need-h">
       <div class="card-head">
         <h3 id="need-h">To get</h3>
-        <span class="muted" id="need-count"></span>
+        <span class="muted count" id="need-count"></span>
       </div>
       <ul class="rows" id="need"></ul>
     </section>
@@ -61,7 +61,7 @@
     <section class="card" aria-labelledby="got-h" id="got-card">
       <div class="card-head">
         <h3 id="got-h">In the cart</h3>
-        <span class="muted" id="got-count"></span>
+        <span class="muted count" id="got-count"></span>
         <button class="btn secondary small" type="button" id="clear-got">Clear checked</button>
       </div>
       <ul class="rows" id="got"></ul>
@@ -72,6 +72,6 @@
   <div class="toast hidden" id="toast" role="status"></div>
 
   <script src="assets/vendor/supabase.js"></script>
-  <script type="module" src="assets/shopping.js"></script>
+  <script type="module" src="assets/shopping.js?v=20261017132817"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 // Photo banner for signed-in pages. Photos live in the private "photos" storage bucket
 // and are shown through short-lived signed links, so they're never public.
-import { sb, q } from './client.js';
-import { h, toast } from './shell.js';
+import { sb, q } from './client.js?v=20261017132817';
+import { h, toast } from './shell.js?v=20261017132817';
 
 const BUCKET = 'photos';
 const ROTATE_MS = 9000;
@@ -37,7 +37,13 @@ export function initPhotos(el, name) {
   let timer = null;
   let front = 0;
 
-  const imgs = [0, 1].map(() => h('img', { class: 'hero-img', alt: '', decoding: 'async' }));
+  // Two slides to cross-fade between. Each shows the whole photo (contain) over a blurred,
+  // cropped copy of itself that fills the rest of the banner.
+  const slides = [0, 1].map(() => {
+    const fill = h('img', { class: 'hero-fill', alt: '', decoding: 'async', 'aria-hidden': 'true' });
+    const img = h('img', { class: 'hero-img', alt: '', decoding: 'async' });
+    return { el: h('div', { class: 'hero-slide' }, fill, img), fill, img };
+  });
   const fileInput = h('input', {
     type: 'file', accept: 'image/*', multiple: true, class: 'hidden',
     onchange: (e) => upload([...e.target.files]).finally(() => { e.target.value = ''; }),
@@ -48,7 +54,7 @@ export function initPhotos(el, name) {
   const sub = h('p', { class: 'hero-sub' });
 
   el.replaceChildren(
-    ...imgs,
+    ...slides.map((s) => s.el),
     h('div', { class: 'hero-shade' }),
     h('div', { class: 'hero-text' }, h('p', { class: 'hero-hi' }, greeting(name)), sub),
     h('div', { class: 'hero-actions' }, nextBtn, delBtn, addBtn),
@@ -61,16 +67,17 @@ export function initPhotos(el, name) {
     nextBtn.classList.toggle('hidden', photos.length < 2);
     delBtn.classList.toggle('hidden', !has);
     sub.textContent = has ? 'Ryan & Ana' : 'Add a few photos of you two. Only you and Ana can see them.';
-    if (!has) return imgs.forEach((img) => img.classList.remove('show'));
-    // Load the next photo into the hidden image, then cross-fade to it.
+    if (!has) return slides.forEach((s) => s.el.classList.remove('show'));
+    // Load the next photo into the hidden slide, then cross-fade to it.
     const back = 1 - front;
-    const img = imgs[back];
+    const { el: slide, fill, img } = slides[back];
     img.alt = 'Photo of Ryan and Ana';
     img.onload = () => {
-      img.classList.add('show');
-      if (front !== back) imgs[front].classList.remove('show');
+      slide.classList.add('show');
+      if (front !== back) slides[front].el.classList.remove('show');
       front = back;
     };
+    fill.src = photos[index].url;
     if (img.src === photos[index].url && img.complete) img.onload(); // same src never fires load again
     else img.src = photos[index].url;
   }

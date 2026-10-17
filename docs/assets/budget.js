@@ -1,6 +1,6 @@
-import { sb, q } from './client.js';
-import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js';
-import { initPhotos } from './photos.js';
+import { sb, q } from './client.js?v=20261017132817';
+import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017132817';
+import { initPhotos } from './photos.js?v=20261017132817';
 
 const BILL_CATEGORIES = ['Housing', 'Utilities', 'Phone & Internet', 'Insurance', 'Transportation',
   'Subscriptions', 'Debt', 'Health', 'Childcare', 'Other'];

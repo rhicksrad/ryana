@@ -90,5 +90,8 @@ docs/                  the website (GitHub Pages serves this folder)
 supabase/schema.sql    tables, security policies, history-keeping functions
 ```
 
+Shipping CSS/JS changes: run `./bump.sh` before committing. It stamps a fresh `?v=` on every
+stylesheet, script and import so phones never mix new pages with cached old files.
+
 Local preview: `python -m http.server 8000 --directory docs`, then add `http://localhost:8000/**`
 to Supabase's redirect URLs.

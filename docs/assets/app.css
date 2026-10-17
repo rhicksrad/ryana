@@ -54,7 +54,6 @@
 body {
   margin: 0;
   background: var(--glow), var(--bg);
-  background-attachment: fixed;
   color: var(--ink);
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -143,7 +142,7 @@ body.loading main, body.loading .me { visibility: hidden; }
   border-bottom: 1px solid var(--line);
 }
 .tabs { display: flex; gap: 4px; overflow-x: auto; }
-.tabs a, .tabs span {
+.tabs a, .tabs > span {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 7px 14px 7px 11px; border-radius: 999px; text-decoration: none; color: var(--muted); font-weight: 600; white-space: nowrap;
   transition: background .15s, color .15s;
@@ -236,16 +235,18 @@ body.loading main, body.loading .me { visibility: hidden; }
 
 /* ---------- Photo banner ---------- */
 .hero {
-  position: relative; height: 220px; margin-bottom: 24px; border-radius: 18px; overflow: hidden;
+  position: relative; height: 340px; margin-bottom: 24px; border-radius: 18px; overflow: hidden;
   background: linear-gradient(135deg, var(--accent) 0%, color-mix(in srgb, var(--accent) 55%, #f0b35a) 100%);
   box-shadow: var(--shadow); isolation: isolate;
 }
-.hero-img {
-  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 35%;
-  opacity: 0; transition: opacity .9s ease;
-}
-.hero-img.show { opacity: 1; }
-.hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgb(0 0 0 / 55%), rgb(0 0 0 / 0%) 60%), linear-gradient(to bottom, rgb(0 0 0 / 28%), rgb(0 0 0 / 0%) 35%); }
+.hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity .9s ease; background: #000; }
+.hero-slide.show { opacity: 1; }
+.hero-slide img { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* The whole photo, never cropped… */
+.hero-img { object-fit: contain; }
+/* …over a blurred, cropped copy of itself filling the empty edges. */
+.hero-fill { object-fit: cover; filter: blur(24px) saturate(1.2) brightness(.8); transform: scale(1.15); }
+.hero-shade { position: absolute; inset: 0; background: linear-gradient(to top, rgb(0 0 0 / 50%), rgb(0 0 0 / 0%) 38%), linear-gradient(to bottom, rgb(0 0 0 / 25%), rgb(0 0 0 / 0%) 22%); }
 .hero.empty { background: url("art/hero-scene.webp") center 62% / cover, var(--accent); }
 .hero-text { position: absolute; left: 22px; right: 22px; bottom: 18px; color: #fff; text-shadow: 0 1px 8px rgb(0 0 0 / 35%); }
 .hero-hi { margin: 0; font: 600 30px/1.15 var(--display); letter-spacing: -0.01em; }
@@ -260,9 +261,12 @@ body.loading main, body.loading .me { visibility: hidden; }
 .hero-btn.icon { width: 32px; padding: 0; }
 .hero-btn svg { width: 15px; height: 15px; }
 .hero-btn:disabled { opacity: .7; cursor: default; }
-@media (prefers-reduced-motion: reduce) { .hero-img { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .hero-slide { transition: none; } }
 
-.hero.compact { height: 130px; }
+.hero.compact { height: 240px; }
+/* The illustration fills the banner until photos are added; no need for as much height. */
+.hero.empty { height: 220px; }
+.hero.compact.empty { height: 130px; }
 .hero.compact .hero-hi { font-size: 23px; }
 
 /* ---------- Shopping & to-dos ---------- */
@@ -373,39 +377,105 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
   .grid-2 .card { margin-bottom: 20px; }
   .insights { margin-bottom: 0; }
 }
+/* ---------- Phones (the main way Ryana is used) ---------- */
 @media (max-width: 560px) {
-  .topbar { flex-wrap: wrap; gap: 8px 16px; }
-  /* backdrop-filter would make the top bar the containing block for the fixed tab bar. */
-  .topbar { backdrop-filter: none; background: var(--bg); }
+  body { font-size: 15px; }
+  /* iOS zooms the page when a focused field's text is under 16px. */
+  input, select, textarea, .field input:not([type="checkbox"]), .field select { font-size: 16px !important; }
+
+  .topbar { flex-wrap: wrap; gap: 10px 12px; padding-bottom: 10px; backdrop-filter: none; background: var(--bg); }
+  .brand { font-size: 20px; }
+  .me { gap: 10px; }
+  .me-name { display: none; }
+  .me .link { text-decoration: none; font-size: 14px; font-weight: 600; }
+
+  /* In Safari: a segmented control under the header (Safari's own toolbar owns the bottom). */
   .tabs {
-    position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; justify-content: space-around; gap: 0;
-    padding: 6px 8px max(8px, env(safe-area-inset-bottom));
-    background: color-mix(in srgb, var(--surface) 90%, transparent); backdrop-filter: blur(14px);
+    order: 3; width: 100%; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px;
+    background: var(--surface); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); overflow: visible;
+  }
+  .tabs a { justify-content: center; gap: 6px; padding: 8px 6px; border-radius: 10px; font-size: 14px; }
+  .tabs a[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
+  .tabs svg { width: 18px; height: 18px; }
+
+  .wrap { padding: 16px 14px calc(40px + env(safe-area-inset-bottom)); }
+
+  .hero { height: auto; aspect-ratio: 1 / 1; margin-bottom: 16px; border-radius: 16px; }
+  .hero.compact { aspect-ratio: 4 / 3; }
+  .hero.empty { aspect-ratio: auto; height: 150px; }
+  .hero.compact.empty { height: 96px; }
+  .hero-text { left: 16px; right: 16px; bottom: 12px; }
+  .hero-hi { font-size: 22px; }
+  .hero-sub { font-size: 13px; }
+  .hero.compact .hero-hi { font-size: 19px; }
+  .hero.compact .hero-sub { display: none; }
+  .hero:not(.empty) .hero-sub { display: none; }
+  .hero-actions { top: 10px; right: 10px; }
+  .hero-btn { height: 30px; font-size: 12px; padding: 0 10px; }
+  .hero-btn.icon { width: 30px; }
+
+  .page-head { flex-wrap: nowrap; gap: 8px; margin-bottom: 14px; }
+  .page-head h1 { font-size: 26px; gap: 8px; min-width: 0; }
+  .spot { width: 40px; height: 40px; }
+  .month-switch { gap: 0; }
+  .month-switch h2 { min-width: 0; font-size: 15px; white-space: nowrap; }
+  .month-switch .btn { display: none; }
+
+  .summary { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .stat { padding: 12px 14px; }
+  .stat .label { font-size: 12px; }
+  .stat .value { font-size: 20px; }
+  .stat .sub { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .card, .grid-2 .card { margin-bottom: 14px; border-radius: 16px; }
+  .grid-2 { gap: 0; }
+  /* Card header: title, count and button on one line; any description underneath. */
+  .card-head { flex-wrap: wrap; gap: 2px 8px; padding: 14px 14px 10px; }
+  .card-head h3 { font-size: 18px; }
+  .card-head .muted { font-size: 13px; }
+  .card-head .muted:not(.count) { order: 3; flex-basis: 100%; }
+  .card-head .btn { margin-left: auto; }
+  .card-body { padding: 4px 14px 14px; }
+  .progress { margin: 0 14px 8px; }
+
+  .card .chips.quick-spend { flex-wrap: nowrap; overflow-x: auto; padding: 0 14px 12px; scrollbar-width: none; }
+  .card .chips.quick-spend::-webkit-scrollbar { display: none; }
+  .chip { white-space: nowrap; flex: none; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; margin: -4px -14px 14px; padding: 0 14px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+
+  .row { padding: 12px 6px 12px 14px; gap: 10px; }
+  .row-actions { gap: 0; }
+  .row-actions .icon-btn { width: 30px; }
+  .person .detail { font-size: 12px; }
+  .cat { grid-template-columns: minmax(70px, 30%) 1fr auto; gap: 8px; font-size: 13px; }
+
+  .quick-add { flex-wrap: wrap; padding: 8px; }
+  .quick-add input:first-child { flex: 1 1 100%; }
+  .quick-add input[type="date"], .quick-add select { flex: 1; }
+
+  /* Dialogs slide up from the bottom like a native sheet. */
+  dialog {
+    width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 20px 20px 0 0; border-width: 1px 0 0;
+    max-height: 92dvh; overflow: auto;
+  }
+  dialog form { padding: 22px 16px calc(16px + env(safe-area-inset-bottom)); }
+  dialog .actions .btn { flex: 1; justify-content: center; padding: 11px 16px; }
+  .field-row { grid-template-columns: 1fr; }
+}
+
+/* Installed on the home screen: a native-style bottom tab bar. */
+@media (max-width: 560px) and (display-mode: standalone) {
+  .tabs {
+    position: fixed; z-index: 20; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-around; gap: 0;
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom)); border-radius: 0; box-shadow: none;
+    background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(14px);
     border-top: 1px solid var(--line);
   }
-  .tabs a { flex: 1; flex-direction: column; gap: 2px; padding: 6px 4px; font-size: 11px; justify-content: center; }
-  .tabs a[aria-current="page"] { background: transparent; }
+  .tabs a { flex: 1; flex-direction: column; gap: 3px; padding: 4px; font-size: 11px; background: transparent; }
+  .tabs a[aria-current="page"] { background: transparent; color: var(--accent); }
   .tabs a[aria-current="page"] svg { background: var(--accent-soft); border-radius: 999px; padding: 3px 16px; box-sizing: content-box; }
   .tabs svg { width: 22px; height: 22px; }
   .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .toast { bottom: calc(84px + env(safe-area-inset-bottom)); }
-  .page-head h1 { font-size: 26px; }
-  .spot { width: 44px; height: 44px; }
-  .me-name { display: none; }
-  .hero { height: 170px; margin-bottom: 18px; }
-  .hero.compact { height: 104px; }
-  .hero.compact .hero-hi { font-size: 20px; }
-  .hero.compact .hero-sub { display: none; }
-  .quick-add { flex-wrap: wrap; }
-  .quick-add input:first-child { flex: 1 1 100%; }
-  .quick-add input[type="date"], .quick-add select { flex: 1; }
-  .hero-hi { font-size: 24px; }
-  .hero-text { left: 16px; bottom: 14px; }
-  .month-switch h2 { min-width: 0; font-size: 16px; }
-  .stat { padding: 12px 14px; }
-  .stat .value { font-size: 20px; }
-  .card-head { flex-wrap: wrap; }
-  .row { padding-left: 14px; gap: 10px; }
-  .row-actions .icon-btn { width: 28px; }
-  .field-row { grid-template-columns: 1fr; }
 }
