@@ -1,18 +1,18 @@
-import { sb, q } from './client.js?v=20261017133110';
-import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017133110';
-import { initPhotos } from './photos.js?v=20261017133110';
+import { sb, q } from './client.js?v=20261017133225';
+import { h, toast, initShell, openForm, rowActions, personClass as colorOf, live } from './shell.js?v=20261017133225';
+import { initPhotos } from './photos.js?v=20261017133225';
 
 const BILL_CATEGORIES = ['Mortgage', 'Utilities', 'Insurance', 'Transportation', 'Subscriptions',
   'Streaming & TV', 'Lawn care', 'Other'];
 // Old category names shown (and saved on the next edit) under their new name.
-const RENAMED_CATEGORIES = { Housing: 'Mortgage' };
-const SPEND_CATEGORIES = ['Groceries', 'Dining out', 'Gas', 'Household', 'Shopping', 'Entertainment',
-  'Health', 'Gifts', 'Travel', 'Pets', 'Other'];
+const RENAMED_CATEGORIES = { Housing: 'Mortgage', 'Dining out': 'Restaurants' };
+const renamed = (category) => RENAMED_CATEGORIES[category] ?? category;
+const SPEND_CATEGORIES = ['Groceries', 'Restaurants', 'Household', 'Shopping', 'Entertainment',
+  'Gifts', 'Travel', 'Pets', 'Other'];
 // One-tap buttons for the everyday stuff, each opening the spending form already set to that category.
 const QUICK_SPEND = [
   { category: 'Groceries', title: 'Add groceries', placeholder: 'e.g. Kroger, Aldi' },
-  { category: 'Dining out', title: 'Add a meal out', placeholder: 'e.g. Chipotle, date night' },
-  { category: 'Gas', title: 'Add gas', placeholder: 'e.g. Speedway' },
+  { category: 'Restaurants', title: 'Add a meal out', placeholder: 'e.g. Chipotle, date night' },
   { category: 'Household', title: 'Add household stuff', placeholder: 'e.g. Target' },
 ];
 
@@ -112,7 +112,7 @@ async function fetchMonth(m) {
       .map((b) => {
         const p = paid.get(b.id);
         return {
-          ...b, category: RENAMED_CATEGORIES[b.category] ?? b.category, paid_at: p?.paid_at ?? null, paid_amount_cents: p?.amount_cents ?? null,
+          ...b, category: renamed(b.category), paid_at: p?.paid_at ?? null, paid_amount_cents: p?.amount_cents ?? null,
           paid_by: p?.paid_by ?? null, paid_by_name: p && nameOf(p.paid_by),
         };
       })
@@ -120,10 +120,16 @@ async function fetchMonth(m) {
     income: income
       .map((i) => ({ ...i, created_by_name: nameOf(i.created_by) }))
       .sort((a, b) => b.recurring - a.recurring || b.amount_cents - a.amount_cents),
-    expenses: expenses.map((e) => ({ ...e, paid_by_name: nameOf(e.paid_by) })),
+    expenses: expenses.map((e) => ({ ...withNewCategory(e), paid_by_name: nameOf(e.paid_by) })),
     transfers, // null until the transfers table exists
-    pastSpending: pastSpending(recent),
+    pastSpending: pastSpending(recent.map(withNewCategory)),
   };
+}
+
+/** A purchase under its category's current name; a blank description (saved as the category) follows it. */
+function withNewCategory(e) {
+  const category = renamed(e.category);
+  return { ...e, category, description: e.description === e.category ? category : e.description };
 }
 
 /** Distinct past descriptions, newest first, each with the category it was last filed under. */
@@ -456,8 +462,9 @@ function expenseForm(expense, quick) {
       { name: 'description', label: 'Where or what (optional)', value: expense?.description,
         placeholder: quick?.placeholder ?? 'e.g. Kroger run', suggestions: [...past.values()].slice(0, 60).map((r) => r.description) },
       { row: [
-        { name: 'category', label: 'Category', type: 'select', options: SPEND_CATEGORIES,
-          value: expense?.category ?? quick?.category ?? 'Groceries' },
+        // A purchase under a retired category (e.g. Gas) keeps it as an option, so editing doesn't change it.
+        { name: 'category', label: 'Category', type: 'select', value: expense?.category ?? quick?.category ?? 'Groceries',
+          options: !expense || SPEND_CATEGORIES.includes(expense.category) ? SPEND_CATEGORIES : [...SPEND_CATEGORIES, expense.category] },
         { name: 'paid_by', label: 'Paid by', type: 'select', options: memberOptions(), value: expense?.paid_by ?? me },
       ] },
     ],
