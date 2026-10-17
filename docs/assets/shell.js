@@ -1,5 +1,5 @@
 // Shared helpers for signed-in pages: sign-in gate, header, DOM building, toasts, form dialog.
-import { sb, configured, q } from './client.js?v=20261017133436';
+import { sb, configured, q } from './client.js?v=20261017134152';
 
 const PROPS = new Set(['checked', 'value', 'disabled', 'selected', 'innerHTML']);
 
@@ -118,7 +118,9 @@ export function openForm({ title, hint, fields, submitLabel = 'Save', onInput, o
     const values = {};
     for (const f of fields.flatMap((f) => f.row ?? [f])) {
       const input = form.elements[f.name];
-      values[f.name] = f.type === 'checkbox' ? input.checked : input.value.trim();
+      values[f.name] = f.type === 'checkbox' ? input.checked
+        : f.type === 'checks' ? [...form.querySelectorAll(`input[name="${f.name}"]:checked`)].map((i) => i.value)
+        : input.value.trim();
       if (f.required && values[f.name] === '') {
         error.textContent = `${f.label} is required.`;
         return input.focus();
@@ -141,6 +143,14 @@ export function openForm({ title, hint, fields, submitLabel = 'Save', onInput, o
 
 function renderField(f) {
   if (f.row) return h('div', { class: 'field-row' }, f.row.map(renderField));
+  // A row of toggle chips, e.g. weekdays. f.value is the array of checked option values.
+  if (f.type === 'checks') {
+    return h('fieldset', { class: 'field checks' }, h('legend', {}, f.label),
+      h('div', { class: 'check-chips' }, f.options.map((o) =>
+        h('label', { class: 'check-chip' },
+          h('input', { type: 'checkbox', name: f.name, value: o.value, checked: f.value?.includes(o.value) }),
+          h('span', {}, o.label)))));
+  }
   if (f.type === 'checkbox') {
     return h('label', { class: 'field inline' },
       h('input', { type: 'checkbox', name: f.name, checked: !!f.value }), h('span', {}, f.label));

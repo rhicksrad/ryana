@@ -68,6 +68,16 @@ Invite and password-reset emails still open in the browser, so finish those ther
 - Optional due date and who's doing it (Ryan, Ana, or either of you). Notes for the details.
 - Grouped Overdue / Today / Next 7 days / Later / No date; filter to one person; recent done items below.
 
+## Calendar
+
+- One shared family calendar: tap a day, then **+ Add event**. Events can be for Ryan, Ana or both of you,
+  timed or all-day (with a last day for trips). Dots on the month grid are events, colored by person.
+- **Work shows up automatically.** Under **Work schedules**, each of you sets either regular hours
+  (Ryan: Mon–Fri 7:30–4:30) or pastes the calendar link from a scheduling app (Amion, QGenda, Outlook…
+  look for "Subscribe", "iCal" or "Sync calendar"). The database fetches that link itself, every hour
+  and whenever the calendar opens, so new shifts appear without anyone re-entering them.
+  Work shows as thin bars under each day.
+
 ## Photos
 
 Signed-in pages show a rotating banner of your photos, kept in a private Supabase storage bucket.
