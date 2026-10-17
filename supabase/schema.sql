@@ -375,6 +375,9 @@ create table if not exists public.work_schedules (
   updated_at     timestamptz not null default now()
 );
 
+-- A Teamup calendar read through the PEVS Worker (feed_url = the Worker): keep only this sub-calendar.
+alter table public.work_schedules add column if not exists teamup_subcalendar bigint;
+
 create table if not exists public.work_shifts (
   email      text not null references public.members (email) on delete cascade,
   uid        text not null,
@@ -487,6 +490,33 @@ begin
   end loop;
 end $$;
 
+-- Teamup events (from the PEVS Worker) on one sub-calendar → shifts in household local time.
+-- Timed events carry a UTC offset; all-day ones are local dates with an inclusive end (…T23:59).
+create or replace function public.parse_teamup(doc jsonb, subcalendar bigint)
+returns table (uid text, day date, end_day date, start_time time, end_time time, title text)
+language sql stable set search_path = '' as $$
+  with ev as (
+    select e,
+           (e->>'all_day')::boolean as all_day,
+           case when e->>'start_dt' ~ '([+-]\d\d:?\d\d|Z)$'
+                then (e->>'start_dt')::timestamptz at time zone 'America/Indiana/Indianapolis'
+                else (e->>'start_dt')::timestamp end as starts,
+           case when e->>'end_dt' ~ '([+-]\d\d:?\d\d|Z)$'
+                then (e->>'end_dt')::timestamptz at time zone 'America/Indiana/Indianapolis'
+                else (e->>'end_dt')::timestamp end as ends
+    from jsonb_array_elements(coalesce(doc->'events', '[]')) e
+    where coalesce(e->'subcalendar_ids', jsonb_build_array(e->'subcalendar_id')) @> to_jsonb(subcalendar)
+      and e->>'delete_dt' is null
+  )
+  select (e->>'id') || '@' || (e->>'start_dt'),
+         starts::date,
+         greatest(starts::date, case when all_day or ends::time <> '00:00' then ends::date else (ends - interval '1 day')::date end),
+         case when all_day then null else starts::time end,
+         case when all_day then null else ends::time end,
+         left(coalesce(nullif(trim(e->>'title'), ''), 'Work'), 120)
+  from ev
+$$;
+
 -- Refresh every calendar link (or just stale ones). Runs as the owner: called by the hourly
 -- job below and, for members, through sync_work_feeds().
 create or replace function public.sync_work_feeds_all(stale_after interval default '30 minutes')
@@ -499,15 +529,28 @@ begin
   for ws in select * from public.work_schedules
             where feed_url is not null and (feed_synced_at is null or feed_synced_at < now() - stale_after) loop
     begin
-      resp := extensions.http_get(ws.feed_url);
-      if resp.status <> 200 or resp.content not like '%BEGIN:VCALENDAR%' then
-        raise exception 'The calendar link answered with %, not a calendar.', resp.status;
+      if ws.teamup_subcalendar is not null then
+        -- PEVS Worker → Teamup events as JSON, already expanded into single occurrences.
+        resp := extensions.http_get(format('%s/events?startDate=%s&endDate=%s&tz=America/Indiana/Indianapolis',
+                                           rtrim(ws.feed_url, '/'), current_date - 60, current_date + 400));
+        if resp.status <> 200 or left(ltrim(resp.content), 1) <> '{' then
+          raise exception 'PEVS answered with %, not a schedule.', resp.status;
+        end if;
+        delete from public.work_shifts where email = ws.email;
+        insert into public.work_shifts (email, uid, day, end_day, start_time, end_time, title)
+        select distinct on (t.uid, t.day) ws.email, t.uid, t.day, t.end_day, t.start_time, t.end_time, t.title
+        from public.parse_teamup(resp.content::jsonb, ws.teamup_subcalendar) t;
+      else
+        resp := extensions.http_get(ws.feed_url);
+        if resp.status <> 200 or resp.content not like '%BEGIN:VCALENDAR%' then
+          raise exception 'The calendar link answered with %, not a calendar.', resp.status;
+        end if;
+        delete from public.work_shifts where email = ws.email;
+        insert into public.work_shifts (email, uid, day, end_day, start_time, end_time, title)
+        select distinct on (p.uid, p.day) ws.email, p.uid, p.day, p.end_day, p.start_time, p.end_time, p.title
+        from public.parse_ics(resp.content) p
+        where p.day between current_date - 60 and current_date + 400;
       end if;
-      delete from public.work_shifts where email = ws.email;
-      insert into public.work_shifts (email, uid, day, end_day, start_time, end_time, title)
-      select distinct on (p.uid, p.day) ws.email, p.uid, p.day, p.end_day, p.start_time, p.end_time, p.title
-      from public.parse_ics(resp.content) p
-      where p.day between current_date - 60 and current_date + 400;
       update public.work_schedules set feed_synced_at = now(), feed_error = null where email = ws.email;
     exception when others then
       update public.work_schedules set feed_synced_at = now(), feed_error = left(sqlerrm, 200) where email = ws.email;
@@ -531,6 +574,7 @@ begin
     delete from public.work_shifts where email = new.email;
     new.feed_synced_at := null; new.feed_error := null;
   end if;
+  if new.feed_url is null then new.teamup_subcalendar := null; end if;
   new.updated_at := now();
   return new;
 end $$;
@@ -538,8 +582,8 @@ drop trigger if exists work_feed_changed on public.work_schedules;
 create trigger work_feed_changed before update on public.work_schedules
   for each row execute function public.work_feed_changed();
 
-revoke execute on function public.sync_work_feeds_all, public.work_feed_changed, public.parse_ics, public.ics_local
-  from public, anon, authenticated;
+revoke execute on function public.sync_work_feeds_all, public.work_feed_changed, public.parse_ics, public.ics_local,
+  public.parse_teamup from public, anon, authenticated;
 revoke execute on function public.sync_work_feeds from public, anon;
 grant execute on function public.sync_work_feeds to authenticated;
 
@@ -559,3 +603,9 @@ begin
     end if;
   end loop;
 end $$;
+
+-- Ana's work comes from PEVS: Teamup through the Worker, sub-calendar "Ana Aghili".
+update public.work_schedules
+set feed_url = 'https://pevs.hicksrch.workers.dev', teamup_subcalendar = 2346358
+where email = (select email from public.members where name = 'Ana') and feed_url is null;
+select public.sync_work_feeds_all('0');
