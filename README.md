@@ -35,6 +35,14 @@ Free accounts need the repo to be public for Pages. That's fine, because no secr
 **Authentication → Users → Invite user** for each of you. The email link opens the site, where you
 choose a password. "Forgot password?" on the sign-in page sends a reset link the same way.
 
+### 4. Put it on your phone
+Ryana installs like an app, with its own icon, full screen and no browser bar.
+- **iPhone:** open the site in Safari → **Share** → **Add to Home Screen**.
+- **Android:** open it in Chrome → **⋮** → **Add to Home screen** (or **Install app**).
+
+The installed app keeps its own sign-in, separate from the browser, so sign in once inside it.
+Invite and password-reset emails still open in the browser, so finish those there first.
+
 ## Budget page
 
 - **Bills** repeat monthly from the month they're added. Tick the box when one's paid; the app records who paid it.
@@ -77,6 +85,8 @@ docs/                  the website (GitHub Pages serves this folder)
   assets/budget.js, shopping.js, todos.js   one script per page
   assets/photos.js     private photo banner
   assets/vendor/       supabase-js 2.117.2 (self-hosted copy)
+  assets/art/          illustrations (page art, sign-in scene, banner shown until photos are added)
+  manifest.webmanifest, sw.js   home-screen app: name, icons, offline fallback
 supabase/schema.sql    tables, security policies, history-keeping functions
 ```
 
