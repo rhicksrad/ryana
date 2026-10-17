@@ -342,3 +342,220 @@ create policy "members add photos" on storage.objects
 drop policy if exists "members remove photos" on storage.objects;
 create policy "members remove photos" on storage.objects
   for delete to authenticated using (bucket_id = 'photos' and public.is_member());
+
+-- ============================================================
+-- Family calendar. Times are local wall-clock time for the household (Indiana, Eastern),
+-- so an event at 7:30 shows at 7:30 for both of you.
+-- ============================================================
+
+create table if not exists public.events (
+  id         bigint generated always as identity primary key,
+  title      text not null check (char_length(title) between 1 and 120),
+  day        date not null,
+  end_day    date check (end_day >= day),           -- multi-day all-day events
+  start_time time,                                   -- null = all day
+  end_time   time,
+  who        text,                                   -- a member's email, or null for both of you
+  notes      text check (char_length(notes) <= 1000),
+  created_by text not null default public.my_email(),
+  created_at timestamptz not null default now()
+);
+create index if not exists events_day on public.events (day);
+
+-- Each person's work: a weekly pattern (weekdays 0 = Sunday … 6 = Saturday) and/or a calendar
+-- link from their scheduling app, whose shifts are copied into work_shifts.
+create table if not exists public.work_schedules (
+  email          text primary key references public.members (email) on delete cascade,
+  weekdays       smallint[] not null default '{}',
+  start_time     time,
+  end_time       time,
+  feed_url       text check (feed_url is null or feed_url ~ '^https://'),
+  feed_synced_at timestamptz,
+  feed_error     text,
+  updated_at     timestamptz not null default now()
+);
+
+create table if not exists public.work_shifts (
+  email      text not null references public.members (email) on delete cascade,
+  uid        text not null,
+  day        date not null,
+  end_day    date not null,
+  start_time time,                                   -- null = all day
+  end_time   time,
+  title      text not null default 'Work',
+  primary key (email, uid, day)
+);
+create index if not exists work_shifts_day on public.work_shifts (day);
+
+do $$
+declare t text;
+begin
+  foreach t in array array['events', 'work_schedules', 'work_shifts'] loop
+    execute format('alter table public.%I enable row level security', t);
+    execute format('drop policy if exists "members only" on public.%I', t);
+    execute format('revoke all on public.%I from anon', t);
+  end loop;
+end $$;
+
+create policy "members only" on public.events
+  for all to authenticated using (public.is_member()) with check (public.is_member());
+create policy "members only" on public.work_schedules
+  for all to authenticated using (public.is_member()) with check (public.is_member());
+-- Shifts are written only by the sync below; members just read them.
+create policy "members only" on public.work_shifts
+  for select to authenticated using (public.is_member());
+
+grant select, insert, update, delete on public.events, public.work_schedules to authenticated;
+grant select on public.work_shifts to authenticated;
+grant usage, select on sequence public.events_id_seq to authenticated;
+
+-- Ryan works 7:30–4:30, Monday to Friday.
+insert into public.work_schedules (email, weekdays, start_time, end_time)
+select email, '{1,2,3,4,5}', '07:30', '16:30' from public.members where name = 'Ryan'
+on conflict (email) do nothing;
+insert into public.work_schedules (email)
+select email from public.members where name <> 'Ryan'
+on conflict (email) do nothing;
+
+-- ---------- Calendar-link sync ----------
+-- The database fetches each calendar link itself (browsers can't, because scheduling apps don't
+-- allow cross-site reads), parses the .ics, and refreshes that person's shifts.
+
+create extension if not exists http with schema extensions;
+
+-- One .ics date/time value → household local time. Handles UTC ("…Z"), TZID=…, floating and
+-- date-only values. Unknown time-zone names (e.g. Outlook's "Eastern Standard Time") fall back
+-- to the feed's own zone.
+create or replace function public.ics_local(params text, val text, feed_tz text)
+returns timestamp language plpgsql stable set search_path = '' as $$
+declare
+  home constant text := 'America/Indiana/Indianapolis';
+  tzid text := trim(both '"' from substring(params from 'TZID=([^;:]+)'));
+  ts   timestamp;
+begin
+  if val ~ '^\d{8}$' then return to_date(val, 'YYYYMMDD')::timestamp; end if;
+  ts := to_timestamp(left(val, 15), 'YYYYMMDD"T"HH24MISS')::timestamp;
+  if val like '%Z' then return (ts at time zone 'UTC') at time zone home; end if;
+  begin
+    return (ts at time zone coalesce(tzid, feed_tz, home)) at time zone home;
+  exception when others then
+    return (ts at time zone coalesce(feed_tz, home)) at time zone home;
+  end;
+end $$;
+
+-- Parse an .ics document into shifts (local day/time), skipping cancelled events.
+create or replace function public.parse_ics(body text)
+returns table (uid text, day date, end_day date, start_time time, end_time time, title text)
+language plpgsql stable set search_path = '' as $$
+declare
+  doc     text := regexp_replace(replace(body, E'\r\n', E'\n'), E'\n[ \t]', '', 'g');  -- unfold lines
+  feed_tz text := substring(doc from '(?n)^X-WR-TIMEZONE:(.+)$');
+  ev      text;
+  s       text[];
+  e       text[];
+  dur     text;
+  starts  timestamp;
+  ends    timestamp;
+  all_day boolean;
+  n       int := 0;
+begin
+  for ev in select m[1] from regexp_matches(doc, 'BEGIN:VEVENT\n(.*?)END:VEVENT', 'g') as m loop
+    n := n + 1;
+    continue when ev ~ '(?n)^STATUS:CANCELLED';
+    s := regexp_match(ev, '(?n)^DTSTART([^:]*):(\S+)');
+    continue when s is null;
+    all_day := s[2] ~ '^\d{8}$';
+    starts := public.ics_local(s[1], s[2], feed_tz);
+    e := regexp_match(ev, '(?n)^DTEND([^:]*):(\S+)');
+    dur := substring(ev from '(?n)^DURATION:(\S+)');
+    ends := case
+      when e is not null then public.ics_local(e[1], e[2], feed_tz)
+      when dur is not null then starts + dur::interval
+      when all_day then starts + interval '1 day'
+      else starts end;
+    uid := coalesce(substring(ev from '(?n)^UID:(.+)$'), 'event-' || n);
+    title := left(coalesce(nullif(regexp_replace(substring(ev from '(?n)^SUMMARY[^:]*:(.+)$'), '\\([,;\\])', '\1', 'g'), ''), 'Work'), 120);
+    day := starts::date;
+    if all_day then
+      end_day := greatest(day, (ends - interval '1 day')::date);   -- all-day DTEND is exclusive
+      start_time := null; end_time := null;
+    else
+      end_day := greatest(day, ends::date);
+      start_time := starts::time; end_time := ends::time;
+    end if;
+    return next;
+  end loop;
+end $$;
+
+-- Refresh every calendar link (or just stale ones). Runs as the owner: called by the hourly
+-- job below and, for members, through sync_work_feeds().
+create or replace function public.sync_work_feeds_all(stale_after interval default '30 minutes')
+returns void language plpgsql security definer set search_path = '' as $$
+declare
+  ws   public.work_schedules;
+  resp extensions.http_response;
+begin
+  perform extensions.http_set_curlopt('CURLOPT_TIMEOUT', '15');
+  for ws in select * from public.work_schedules
+            where feed_url is not null and (feed_synced_at is null or feed_synced_at < now() - stale_after) loop
+    begin
+      resp := extensions.http_get(ws.feed_url);
+      if resp.status <> 200 or resp.content not like '%BEGIN:VCALENDAR%' then
+        raise exception 'The calendar link answered with %, not a calendar.', resp.status;
+      end if;
+      delete from public.work_shifts where email = ws.email;
+      insert into public.work_shifts (email, uid, day, end_day, start_time, end_time, title)
+      select distinct on (p.uid, p.day) ws.email, p.uid, p.day, p.end_day, p.start_time, p.end_time, p.title
+      from public.parse_ics(resp.content) p
+      where p.day between current_date - 60 and current_date + 400;
+      update public.work_schedules set feed_synced_at = now(), feed_error = null where email = ws.email;
+    exception when others then
+      update public.work_schedules set feed_synced_at = now(), feed_error = left(sqlerrm, 200) where email = ws.email;
+    end;
+  end loop;
+end $$;
+
+-- For the app: members can ask for a refresh (force = right after saving a new link).
+create or replace function public.sync_work_feeds(force boolean default false)
+returns void language plpgsql security definer set search_path = '' as $$
+begin
+  if not public.is_member() then raise exception 'Members only.'; end if;
+  perform public.sync_work_feeds_all(case when force then interval '0' else interval '30 minutes' end);
+end $$;
+
+-- A link that changes or goes away takes its old shifts with it.
+create or replace function public.work_feed_changed() returns trigger
+language plpgsql security definer set search_path = '' as $$
+begin
+  if new.feed_url is distinct from old.feed_url then
+    delete from public.work_shifts where email = new.email;
+    new.feed_synced_at := null; new.feed_error := null;
+  end if;
+  new.updated_at := now();
+  return new;
+end $$;
+drop trigger if exists work_feed_changed on public.work_schedules;
+create trigger work_feed_changed before update on public.work_schedules
+  for each row execute function public.work_feed_changed();
+
+revoke execute on function public.sync_work_feeds_all, public.work_feed_changed, public.parse_ics, public.ics_local
+  from public, anon, authenticated;
+revoke execute on function public.sync_work_feeds from public, anon;
+grant execute on function public.sync_work_feeds to authenticated;
+
+-- Hourly refresh, so shifts stay current even when nobody opens the app.
+create extension if not exists pg_cron;
+select cron.schedule('ryana-work-feeds', '7 * * * *', $$select public.sync_work_feeds_all('50 minutes')$$);
+
+do $$
+declare t text;
+begin
+  foreach t in array array['events', 'work_schedules', 'work_shifts'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
