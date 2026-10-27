@@ -568,3 +568,6 @@ dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top
   .summary.together .stat .value { font-size: 18px; }
   .page-head .btn { padding: 7px 12px; }
 }
+/* Holidays, birthdays and anniversaries on the calendar: warm, since hue belongs to people. */
+.special { --person: var(--warn); }
+.special-icon { color: var(--warn); }

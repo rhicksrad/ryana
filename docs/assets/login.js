@@ -1,4 +1,4 @@
-import { sb, configured, pageUrl } from './client.js?v=20261027200923';
+import { sb, configured, pageUrl } from './client.js?v=20261027201352';
 
 const form = document.getElementById('login-form');
 const error = document.getElementById('error');

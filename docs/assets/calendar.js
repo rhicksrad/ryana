@@ -1,12 +1,13 @@
-import { sb, q } from './client.js?v=20261027200923';
-import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261027200923';
-import { initPhotos } from './photos.js?v=20261027200923';
+import { sb, q } from './client.js?v=20261027201352';
+import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261027201352';
+import { initPhotos } from './photos.js?v=20261027201352';
 
 // Family calendar: shared events plus each person's work, which comes from a weekly pattern
 // (e.g. Mon–Fri 7:30–4:30) or from their scheduling app's calendar link, synced by the database.
 
 const SOON_DAYS = 14;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const ICON_SPECIAL = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.2l1.7 3.6 3.9.5-2.9 2.7.8 3.9L8 11l-3.5 1.9.8-3.9-2.9-2.7 3.9-.5z"/></svg>';
 const ICON_WORK = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="12" height="8.5" rx="2"/><path d="M6 5V3.8A1.3 1.3 0 0 1 7.3 2.5h1.4A1.3 1.3 0 0 1 10 3.8V5M2 9h12"/></svg>';
 
 let me = null;
@@ -15,6 +16,8 @@ let nameOf = (email) => email;
 let events = [];
 let shifts = [];
 let schedules = [];
+let birthdays = [];   // [{ email, name, birthday: 'MM-DD' }]
+let together = null; // the 'Together' milestone: { on_date, monthly }
 let loadSeq = 0;
 
 // ---------- Dates (all local wall-clock; the calendar has no time zones) ----------
@@ -57,16 +60,22 @@ async function load() {
   const { start, end } = gridRange();
   const until = [end, addDays(today(), SOON_DAYS)].sort().at(-1);
   try {
-    const [eventRows, shiftRows, scheduleRows] = await Promise.all([
+    const [eventRows, shiftRows, scheduleRows, special] = await Promise.all([
       // Multi-day events can start before the grid; 60 days back covers any sensible trip.
       q(sb.from('events').select('*').gte('day', addDays(start, -60)).lte('day', until).order('day').order('start_time', { nullsFirst: true })),
       q(sb.from('work_shifts').select('*').gte('day', addDays(start, -1)).lte('day', until).order('day').order('start_time', { nullsFirst: true })),
       q(sb.from('work_schedules').select('*')),
+      // Birthdays and anniversaries from the wishlist; none until schema.sql has been re-run.
+      Promise.all([
+        q(sb.from('members').select('email, name, birthday').not('birthday', 'is', null)),
+        q(sb.from('milestones').select('*').eq('name', 'Together')),
+      ]).catch(() => [[], []]),
     ]);
     if (seq !== loadSeq) return;
     events = eventRows;
     shifts = shiftRows;
     schedules = scheduleRows;
+    [birthdays, [together = null]] = special;
     render();
   } catch (err) {
     toast(err.message);
@@ -75,11 +84,43 @@ async function load() {
 
 // ---------- What's on a day ----------
 
+/** The big six holidays: New Year's, Memorial Day, July 4th, Labor Day, Thanksgiving, Christmas. */
+function holidayOn(day) {
+  const fixed = { '01-01': "New Year's Day", '07-04': 'Independence Day', '12-25': 'Christmas' };
+  if (fixed[day.slice(5)]) return fixed[day.slice(5)];
+  const date = parseDay(day);
+  const [month, dom, weekday] = [date.getMonth() + 1, date.getDate(), date.getDay()];
+  if (month === 5 && weekday === 1 && dom > 24) return 'Memorial Day';    // last Monday in May
+  if (month === 9 && weekday === 1 && dom <= 7) return 'Labor Day';       // first Monday in September
+  if (month === 11 && weekday === 4 && dom > 21 && dom <= 28) return 'Thanksgiving'; // fourth Thursday
+  return null;
+}
+
+/** Holidays, birthdays and anniversaries falling on a day. */
+function specialsOn(day) {
+  const items = [];
+  const md = day.slice(5);
+  const holiday = holidayOn(day);
+  if (holiday) items.push({ title: holiday, who: null });
+  for (const b of birthdays) if (b.birthday === md) items.push({ title: `${b.name}'s birthday`, who: b.email });
+  if (together && day > together.on_date) {
+    const [y, m, d] = together.on_date.split('-').map(Number);
+    const date = parseDay(day);
+    const n = (date.getFullYear() - y) * 12 + (date.getMonth() - (m - 1));
+    // A day like the 31st lands on the last day of shorter months.
+    const due = Math.min(d, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate());
+    if (n > 0 && date.getDate() === due && (together.monthly || n % 12 === 0)) {
+      items.push({ title: n % 12 ? `${n} months together` : `${n / 12}-year anniversary`, who: null });
+    }
+  }
+  return items.map((i) => ({ ...i, kind: 'special', key: `x${i.title}${day}`, when: 'All day' }));
+}
+
 const covers = (row, day) => row.day <= day && day <= (row.end_day ?? row.day);
 
 /** Everything on one day, all-day items first, then by start time. */
 function itemsOn(day) {
-  const items = [];
+  const items = specialsOn(day);
   for (const e of events) {
     if (!covers(e, day)) continue;
     items.push({ kind: 'event', key: `e${e.id}`, title: e.title, who: e.who, start: e.start_time, end: e.end_time, row: e,
@@ -121,7 +162,7 @@ function renderGrid() {
   for (let day = start; day <= end; day = addDays(day, 1)) {
     const items = itemsOn(day);
     const work = [...new Set(items.filter((i) => i.kind === 'work').map((i) => i.who))];
-    const evs = items.filter((i) => i.kind === 'event');
+    const evs = items.filter((i) => i.kind !== 'work');
     const label = `${longDay(day)}: ${items.length ? items.map((i) => i.title).join(', ') : 'nothing planned'}`;
     cells.push(h('button', {
       type: 'button', role: 'gridcell', 'aria-label': label, 'aria-selected': String(day === selected),
@@ -129,7 +170,7 @@ function renderGrid() {
       onclick: () => { selected = day; if (day.slice(0, 7) !== month) { month = day.slice(0, 7); load(); } else render(); },
     },
     h('span', { class: 'num' }, String(parseDay(day).getDate())),
-    h('span', { class: 'dots' }, evs.slice(0, 3).map((e) => h('span', { class: `dot ${whoClass(e.who)}` })),
+    h('span', { class: 'dots' }, evs.slice(0, 3).map((e) => h('span', { class: `dot ${e.kind === 'special' ? 'special' : whoClass(e.who)}` })),
       evs.length > 3 ? h('span', { class: 'more' }, `+${evs.length - 3}`) : null),
     h('span', { class: 'work-bars' }, work.map((w) => h('span', { class: `bar ${whoClass(w)}` })))));
   }
@@ -137,15 +178,17 @@ function renderGrid() {
   document.getElementById('legend').replaceChildren(
     ...members.map((m) => h('span', { class: `legend ${whoClass(m.email)}` }, h('span', { class: 'swatch' }), m.name)),
     h('span', { class: 'legend both' }, h('span', { class: 'swatch' }), 'Both'),
+    h('span', { class: 'legend special' }, h('span', { class: 'swatch' }), 'Special day'),
     h('span', { class: 'legend' }, h('span', { class: 'bar-key' }), 'Work'));
 }
 
 function itemRow(item, showDay) {
   return h('li', { class: `row cal-item ${item.kind}` },
-    h('div', { class: `cal-time ${whoClass(item.who)}` }, item.start ? timeLabel(item.start) : 'All day'),
+    h('div', { class: `cal-time ${item.kind === 'special' ? 'special' : whoClass(item.who)}` }, item.start ? timeLabel(item.start) : 'All day'),
     h('div', { class: 'row-main' },
       h('div', { class: 'row-title' },
         item.kind === 'work' ? h('span', { class: 'work-icon', innerHTML: ICON_WORK }) : null,
+        item.kind === 'special' ? h('span', { class: 'work-icon special-icon', innerHTML: ICON_SPECIAL }) : null,
         h('span', { class: 'name' }, item.title),
         h('span', { class: `tag who ${whoClass(item.who)}` }, h('span', { class: 'swatch', 'aria-hidden': 'true' }), whoName(item.who))),
       h('div', { class: 'row-sub' }, [showDay && shortDay(showDay), item.when].filter(Boolean).join(' · ')),
@@ -165,7 +208,9 @@ function renderDay() {
 function renderSoon() {
   const rows = [];
   for (let day = today(), n = 0; n < SOON_DAYS; day = addDays(day, 1), n++) {
-    for (const item of itemsOn(day)) if (item.kind === 'event' && (item.row.day === day || n === 0)) rows.push(itemRow(item, day));
+    for (const item of itemsOn(day)) {
+      if (item.kind === 'special' || (item.kind === 'event' && (item.row.day === day || n === 0))) rows.push(itemRow(item, day));
+    }
   }
   document.getElementById('soon').replaceChildren(...(rows.length ? rows
     : [h('li', { class: 'empty' }, 'Nothing on the calendar for the next two weeks.')]));
@@ -312,7 +357,7 @@ try {
   me = user.email.toLowerCase();
   initPhotos(document.getElementById('hero'), nameOf(me));
   await load();
-  live(['events', 'work_schedules', 'work_shifts'], load);
+  live(['events', 'work_schedules', 'work_shifts', 'milestones'], load);
   // Top up calendar-link shifts if they're older than half an hour (the database also does this hourly).
   sb.rpc('sync_work_feeds').then(() => load(), () => {});
 } catch (err) {
