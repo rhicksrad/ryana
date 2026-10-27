@@ -56,7 +56,7 @@ Invite and password-reset emails still open in the browser, so finish those ther
 - **Left over** = income − bills − spending for the month.
 
 > **Updating from an earlier version?** Re-run [`supabase/schema.sql`](supabase/schema.sql) in the SQL Editor
-> to add the `transfers` table. It's safe to re-run. Until then the Transfers card says so and everything else works.
+> to add the `transfers` and wishlist tables. It's safe to re-run. Until then the Transfers card says so and everything else works.
 
 ## Shopping
 
@@ -77,8 +77,19 @@ Invite and password-reset emails still open in the browser, so finish those ther
   look for "Subscribe", "iCal" or "Sync calendar"). The database fetches that link itself, every hour
   and whenever the calendar opens, so new shifts appear without anyone re-entering them.
   Work shows as thin bars under each day.
+- **Special days show up too:** the big six holidays (New Year's, Memorial Day, July 4th, Labor Day, Thanksgiving,
+  Christmas), both birthdays, and your anniversaries (monthly, if you celebrate them) from the Wishlist's **Edit dates**.
 - Ana's shifts come from **PEVS**: her Teamup schedule, read through the PEVS Worker
   (`pevs.hicksrch.workers.dev`, sub-calendar "Ana Aghili"), synced the same way.
+
+## Wishlist
+
+- Each of you keeps a list of things you'd like, with a link to the exact item, a rough price, details like size or
+  color, and the occasion (Christmas, birthday, anniversary, or any). Star the ones you really want.
+- On the other person's list, tap **I'll get this**. The database hides claims from the person the gift is for, so
+  it stays a surprise. **I'm getting** is your private shopping list; tick things off once they're bought.
+- At the top: days together, days until your next yearly anniversary, the next monthly one, and countdowns to
+  Christmas and both birthdays. Set them with **Edit dates** (each of you sets your own birthday).
 
 ## Photos
 
@@ -91,10 +102,10 @@ Add them with "+ Add photos". Never put photos in this repo, because it's public
 docs/                  the website (GitHub Pages serves this folder)
   config.js            Supabase URL + publishable key
   index.html           routes visitors and email links to the right page
-  login.html, setup.html, budget.html, shopping.html, todos.html
+  login.html, setup.html, budget.html, shopping.html, todos.html, wishlist.html
   assets/client.js     Supabase client + query helper
   assets/shell.js      sign-in gate, header, form dialog (shared by every signed-in page)
-  assets/budget.js, shopping.js, todos.js   one script per page
+  assets/budget.js, shopping.js, todos.js, wishlist.js   one script per page
   assets/photos.js     private photo banner
   assets/vendor/       supabase-js 2.117.2 (self-hosted copy)
   assets/art/          illustrations (page art, sign-in scene, banner shown until photos are added)

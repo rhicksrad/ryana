@@ -609,3 +609,106 @@ update public.work_schedules
 set feed_url = 'https://pevs.hicksrch.workers.dev', teamup_subcalendar = 2346358
 where email = (select email from public.members where name = 'Ana') and feed_url is null;
 select public.sync_work_feeds_all('0');
+
+-- ============================================================
+-- Wishlist: each of you lists what you'd like, with a link to the exact item.
+-- The other can claim a wish ("I'll get this"). Claims are hidden from the
+-- person the gift is for by the policies below, not just by the page.
+-- ============================================================
+
+-- Birthdays as 'MM-DD' (no year), for the countdowns. Each of you can set only your own.
+alter table public.members add column if not exists birthday text
+  check (birthday ~ '^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$');
+
+drop policy if exists "members update own birthday" on public.members;
+create policy "members update own birthday" on public.members
+  for update to authenticated using (email = public.my_email()) with check (email = public.my_email());
+grant update (birthday) on public.members to authenticated;
+
+-- Dates you count from, e.g. 'Together' (the day you got together, celebrated monthly).
+create table if not exists public.milestones (
+  name       text primary key check (char_length(name) between 1 and 40),
+  on_date    date not null,
+  monthly    boolean not null default false,
+  created_by text not null default public.my_email(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.wishes (
+  id          bigint generated always as identity primary key,
+  owner       text not null default public.my_email(),
+  title       text not null check (char_length(title) between 1 and 120),
+  url         text check (url ~* '^https?://' and char_length(url) <= 2000),
+  price       text check (char_length(price) <= 20),
+  occasion    text not null default 'any' check (occasion in ('any', 'christmas', 'birthday', 'anniversary')),
+  notes       text check (char_length(notes) <= 500),
+  really_want boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+
+-- A claim keeps the wish's title and link, so the giver still has them if the wish is removed.
+create table if not exists public.wish_claims (
+  id         bigint generated always as identity primary key,
+  wish_id    bigint unique references public.wishes (id) on delete set null,
+  wish_owner text not null,
+  title      text not null check (char_length(title) between 1 and 120),
+  url        text check (char_length(url) <= 2000),
+  bought     boolean not null default false,
+  claimed_by text not null default public.my_email(),
+  claimed_at timestamptz not null default now()
+);
+
+alter table public.milestones  enable row level security;
+alter table public.wishes      enable row level security;
+alter table public.wish_claims enable row level security;
+
+drop policy if exists "members only" on public.milestones;
+create policy "members only" on public.milestones
+  for all to authenticated using (public.is_member()) with check (public.is_member());
+
+-- Everyone reads every wish; only its owner adds, changes or removes it.
+drop policy if exists "members read wishes" on public.wishes;
+create policy "members read wishes" on public.wishes
+  for select to authenticated using (public.is_member());
+drop policy if exists "owner adds wishes" on public.wishes;
+create policy "owner adds wishes" on public.wishes
+  for insert to authenticated with check (public.is_member() and owner = public.my_email());
+drop policy if exists "owner changes wishes" on public.wishes;
+create policy "owner changes wishes" on public.wishes
+  for update to authenticated using (owner = public.my_email()) with check (owner = public.my_email());
+drop policy if exists "owner removes wishes" on public.wishes;
+create policy "owner removes wishes" on public.wishes
+  for delete to authenticated using (owner = public.my_email());
+
+-- The surprise: nobody can see claims on their own wishes.
+drop policy if exists "claims hidden from the recipient" on public.wish_claims;
+create policy "claims hidden from the recipient" on public.wish_claims
+  for select to authenticated using (public.is_member() and wish_owner <> public.my_email());
+drop policy if exists "claim someone else's wish" on public.wish_claims;
+create policy "claim someone else's wish" on public.wish_claims
+  for insert to authenticated with check (
+    public.is_member() and claimed_by = public.my_email() and wish_owner <> public.my_email()
+    and wish_owner = (select w.owner from public.wishes w where w.id = wish_id));
+drop policy if exists "claimer changes claim" on public.wish_claims;
+create policy "claimer changes claim" on public.wish_claims
+  for update to authenticated using (claimed_by = public.my_email()) with check (claimed_by = public.my_email());
+drop policy if exists "claimer removes claim" on public.wish_claims;
+create policy "claimer removes claim" on public.wish_claims
+  for delete to authenticated using (claimed_by = public.my_email());
+
+revoke all on public.milestones, public.wishes, public.wish_claims from anon;
+grant select, insert, update, delete on public.milestones, public.wishes, public.wish_claims to authenticated;
+grant usage, select on sequence public.wishes_id_seq, public.wish_claims_id_seq to authenticated;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['milestones', 'wishes', 'wish_claims'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
