@@ -1,7 +1,7 @@
 // Photo banner for signed-in pages. Photos live in the private "photos" storage bucket
 // and are shown through short-lived signed links, so they're never public.
-import { sb, q } from './client.js?v=20261017140918';
-import { h, toast } from './shell.js?v=20261017140918';
+import { sb, q } from './client.js?v=20261027200923';
+import { h, toast } from './shell.js?v=20261027200923';
 
 const BUCKET = 'photos';
 const ROTATE_MS = 9000;

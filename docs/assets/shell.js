@@ -1,5 +1,5 @@
 // Shared helpers for signed-in pages: sign-in gate, header, DOM building, toasts, form dialog.
-import { sb, configured, q } from './client.js?v=20261017140918';
+import { sb, configured, q } from './client.js?v=20261027200923';
 
 const PROPS = new Set(['checked', 'value', 'disabled', 'selected', 'innerHTML']);
 

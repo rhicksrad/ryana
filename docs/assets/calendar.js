@@ -1,6 +1,6 @@
-import { sb, q } from './client.js?v=20261017140918';
-import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261017140918';
-import { initPhotos } from './photos.js?v=20261017140918';
+import { sb, q } from './client.js?v=20261027200923';
+import { h, toast, initShell, openForm, rowActions, personClass, live } from './shell.js?v=20261027200923';
+import { initPhotos } from './photos.js?v=20261027200923';
 
 // Family calendar: shared events plus each person's work, which comes from a weekly pattern
 // (e.g. Mon–Fri 7:30–4:30) or from their scheduling app's calendar link, synced by the database.
